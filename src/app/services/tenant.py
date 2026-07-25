@@ -63,13 +63,13 @@ class TenantConfig:
         info = self._find_doc(type_="Negocio")
         promos = self._find_doc(type_="Promociones")
         parts: list[str] = []
-        if estilo_doc:
-            parts.append(estilo_doc.body)
         if info:
             parts.append(info.body)
         if promos:
             parts.append(promos.body)
         parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
+        if estilo_doc:
+            parts.append(f"\nESTILO DE COMUNICACIÓN (SIGUE ESTO SIEMPRE):\n{estilo_doc.body}")
         return "\n\n".join(parts)
 
     @property
