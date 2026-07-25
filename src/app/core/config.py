@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     tenant_id: str = Field(default="santa_lena")
     estilo: str = Field(default="chat")
 
+    whatsapp_access_token: str = Field(default="")
+    whatsapp_phone_number_id: str = Field(default="")
+    whatsapp_verify_token: str = Field(default="agente_ia_verify_2026")
+
     llm_provider: str = Field(default="openrouter")
     llm_api_key: str = Field(default="")
     llm_model: str = Field(default="meta-llama/llama-3.3-70b-instruct:free")
