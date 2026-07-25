@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Query, Request, Response
 
 from src.app.channels.base import OutgoingMessage
@@ -9,6 +11,7 @@ from src.app.services.session import SessionManager
 from src.app.services.tenant import load_tenant
 from src.app.tools.registry import get_tools_for_tenant
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["webhook"])
 
 
@@ -40,21 +43,31 @@ async def whatsapp_webhook(request: Request) -> Response:
     if not incoming:
         return Response(content="OK", status_code=200)
 
+    logger.info(f"[WA] Mensaje de {incoming.sender_id}: {incoming.message}")
+
     tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 
-    session = SessionManager(redis)
-    history = await session.get_history(incoming.sender_id)
+    history = []
+    try:
+        session = SessionManager(redis)
+        history = await session.get_history(incoming.sender_id)
+    except Exception:
+        logger.warning("[WA] Redis no disponible, sin historial")
 
     result = await agent.run(user_message=incoming.message, history=history)
 
-    relevant_messages = [
-        m for m in result.messages
-        if m.role in ("user", "assistant") and m.content
-    ]
-    await session.save_history(incoming.sender_id, relevant_messages)
+    try:
+        session = SessionManager(redis)
+        relevant_messages = [
+            m for m in result.messages
+            if m.role in ("user", "assistant") and m.content
+        ]
+        await session.save_history(incoming.sender_id, relevant_messages)
+    except Exception:
+        logger.warning("[WA] Redis no disponible, no se guardó historial")
 
     await adapter.send_reply(OutgoingMessage(
         channel="whatsapp",
@@ -62,4 +75,5 @@ async def whatsapp_webhook(request: Request) -> Response:
         message=result.response,
     ))
 
+    logger.info(f"[WA] Respuesta enviada a {incoming.sender_id}")
     return Response(content="OK", status_code=200)
