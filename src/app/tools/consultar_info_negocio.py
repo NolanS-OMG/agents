@@ -29,31 +29,15 @@ class ConsultarInfoNegocio(BaseTool):
             return ToolResult(status=200, data={"info": "Sin configuración de negocio."})
 
         if "menu" in consulta or "carta" in consulta or "platillo" in consulta:
-            return ToolResult(status=200, data={"menu": self._tenant.get_menu_as_text()})
+            return ToolResult(status=200, data={"info": self._tenant.get_menu_as_text()})
 
-        if "horario" in consulta:
-            horarios = self._tenant.negocio.get("horarios", {})
-            return ToolResult(status=200, data={"horarios": horarios})
-
-        if "ubicacion" in consulta or "direccion" in consulta or "donde" in consulta:
-            return ToolResult(status=200, data={
-                "direccion": self._tenant.negocio.get("direccion", ""),
-                "telefono": self._tenant.negocio.get("telefono", ""),
-            })
+        if "horario" in consulta or "ubicacion" in consulta or "direccion" in consulta or "donde" in consulta:
+            return ToolResult(status=200, data={"info": self._tenant.get_info_general()})
 
         if "promocion" in consulta or "oferta" in consulta or "descuento" in consulta:
-            promos = self._tenant.negocio.get("promociones", [])
-            return ToolResult(status=200, data={"promociones": promos})
+            return ToolResult(status=200, data={"info": self._tenant.get_promociones()})
 
-        negocio = self._tenant.negocio
-        return ToolResult(status=200, data={
-            "nombre": negocio.get("nombre", ""),
-            "descripcion": negocio.get("descripcion", ""),
-            "horarios": negocio.get("horarios", {}),
-            "direccion": negocio.get("direccion", ""),
-            "telefono": negocio.get("telefono", ""),
-            "promociones": negocio.get("promociones", []),
-        })
+        return ToolResult(status=200, data={"info": self._tenant.get_info_general()})
 
     def schema(self) -> dict[str, Any]:
         return {

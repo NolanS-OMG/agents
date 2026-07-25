@@ -75,9 +75,9 @@ class EjecutarAccion(BaseTool):
     def _find_accion(self, categoria: str) -> dict[str, Any] | None:
         if not self._tenant:
             return None
-        for accion in self._tenant.acciones.get("acciones", []):
+        for accion in self._tenant.get_acciones_config():
             if accion["categoria"] == categoria:
-                return accion  # type: ignore[no-any-return]
+                return accion
         return None
 
     def schema(self) -> dict[str, Any]:
