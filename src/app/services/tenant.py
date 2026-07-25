@@ -58,16 +58,22 @@ class TenantConfig:
             return {}
         return doc.frontmatter
 
-    @property
-    def prompt(self) -> str:
+    def get_prompt(self, estilo: str = "chat") -> str:
         info = self._find_doc(type_="Negocio")
         promos = self._find_doc(type_="Promociones")
+        estilo_doc = self._find_estilo(estilo)
         parts: list[str] = []
+        if estilo_doc:
+            parts.append(estilo_doc.body)
         if info:
             parts.append(info.body)
         if promos:
             parts.append(promos.body)
         return "\n\n".join(parts)
+
+    @property
+    def prompt(self) -> str:
+        return self.get_prompt()
 
     @property
     def menu_docs(self) -> list[OKFDocument]:
@@ -120,6 +126,12 @@ class TenantConfig:
     def _find_doc(self, type_: str) -> OKFDocument | None:
         for doc in self._docs:
             if doc.type == type_:
+                return doc
+        return None
+
+    def _find_estilo(self, estilo: str) -> OKFDocument | None:
+        for doc in self._docs:
+            if doc.type == "Estilo" and estilo in doc.path.stem:
                 return doc
         return None
 

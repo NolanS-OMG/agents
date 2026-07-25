@@ -31,7 +31,7 @@ async def chat(request: Request, body: ChatMessage) -> ChatResponse:
     tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
-    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.prompt)
+    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 
     session = SessionManager(redis)
     history = await session.get_history(body.session_id)

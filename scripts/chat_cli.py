@@ -18,8 +18,8 @@ from src.app.tools.registry import get_tools_for_tenant
 async def main() -> None:
     tenant = load_tenant(settings.tenant_id)
     print(f"\n{'='*60}")
-    print(f"  {tenant.negocio.get('nombre', 'Agente')} - Chat CLI")
-    print(f"  Tenant: {settings.tenant_id}")
+    print(f"  {tenant.negocio.get('title', 'Agente')} - Chat CLI")
+    print(f"  Tenant: {settings.tenant_id} | Estilo: {settings.estilo}")
     print(f"  Modelo: {settings.llm_model}")
     print(f"{'='*60}")
     print("  Escribe 'salir' para terminar.\n")
@@ -44,7 +44,7 @@ async def main() -> None:
                 print("\nHasta luego!")
                 break
 
-            agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.prompt)
+            agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 
             try:
                 result = await agent.run(user_message=user_input, history=history)
