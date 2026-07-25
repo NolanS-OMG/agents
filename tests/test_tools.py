@@ -28,15 +28,25 @@ async def test_ejecutar_accion_missing_accion_solicitada() -> None:
 
 @pytest.mark.anyio
 async def test_ejecutar_accion_success() -> None:
-    tool = EjecutarAccion()
+    from src.app.services.tenant import load_tenant
+
+    tenant = load_tenant("santa_lena")
+    tool = EjecutarAccion(tenant=tenant)
     result = await tool.execute(
-        categoria="agenda",
-        accion_solicitada="agendar cita para mañana",
+        categoria="reservacion",
+        accion_solicitada="reservar mesa",
+        parametros_extra={
+            "nombre_cliente": "Juan",
+            "telefono": "8112345678",
+            "fecha": "2026-07-30",
+            "hora": "20:00",
+            "numero_personas": "4",
+        },
     )
 
     assert isinstance(result, ToolResult)
     assert result.status == 200
-    assert "agenda" in result.data["mensaje"]
+    assert "registrada" in result.data["mensaje"]
 
 
 @pytest.mark.anyio
