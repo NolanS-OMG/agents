@@ -1,6 +1,7 @@
+import asyncio
 from typing import Any
 
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPStatusError
 
 from src.app.services.llm.base import LLMMessage, LLMProvider, LLMResponse
 
@@ -12,7 +13,7 @@ class OpenAICompatibleProvider(LLMProvider):
         api_key: str,
         base_url: str,
         model: str,
-        max_retries: int = 2,
+        max_retries: int = 3,
     ) -> None:
         self._client = http_client
         self._api_key = api_key
@@ -34,21 +35,38 @@ class OpenAICompatibleProvider(LLMProvider):
         if tools:
             payload["tools"] = tools
 
-        response = await self._client.post(
-            f"{self._base_url}/chat/completions",
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Content-Type": "application/json",
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/agente-ia",
+            "X-Title": "Agente IA",
+        }
 
-        choice = data["choices"][0]["message"]
-        return LLMResponse(
-            content=choice.get("content", ""),
-            model=data.get("model", self._model),
-            usage=data.get("usage", {}),
-            tool_calls=choice.get("tool_calls", []),
+        for attempt in range(self._max_retries):
+            response = await self._client.post(
+                f"{self._base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+            )
+
+            if response.status_code == 429:
+                wait = 2 ** attempt + 1
+                await asyncio.sleep(wait)
+                continue
+
+            response.raise_for_status()
+            data = response.json()
+
+            choice = data["choices"][0]["message"]
+            return LLMResponse(
+                content=choice.get("content", ""),
+                model=data.get("model", self._model),
+                usage=data.get("usage", {}),
+                tool_calls=choice.get("tool_calls", []),
+            )
+
+        raise HTTPStatusError(
+            "Rate limited after retries",
+            request=response.request,
+            response=response,
         )
