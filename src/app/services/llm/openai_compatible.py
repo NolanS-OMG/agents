@@ -59,10 +59,10 @@ class OpenAICompatibleProvider(LLMProvider):
 
             choice = data["choices"][0]["message"]
             return LLMResponse(
-                content=choice.get("content", ""),
+                content=choice.get("content") or "",
                 model=data.get("model", self._model),
                 usage=data.get("usage", {}),
-                tool_calls=choice.get("tool_calls", []),
+                tool_calls=choice.get("tool_calls") or [],
             )
 
         raise HTTPStatusError(
