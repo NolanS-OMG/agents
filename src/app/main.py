@@ -1,0 +1,15 @@
+from fastapi import FastAPI
+
+from src.app.api.routes import chat, health
+from src.app.core.config import settings
+from src.app.core.lifespan import lifespan
+
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url=None,
+)
+
+app.include_router(health.router)
+app.include_router(chat.router, prefix="/api/v1")
