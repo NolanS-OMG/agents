@@ -12,7 +12,7 @@ class LLMMessage(BaseModel):
 class LLMResponse(BaseModel):
     content: str
     model: str
-    usage: dict[str, int] = {}
+    usage: dict[str, Any] = {}
     tool_calls: list[dict[str, Any]] = []
 
 

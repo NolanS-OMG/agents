@@ -28,7 +28,7 @@ class AgentResult:
         response: str,
         tool_used: str | None,
         messages: list[LLMMessage],
-        usage: dict[str, int],
+        usage: dict[str, Any],
     ) -> None:
         self.response = response
         self.tool_used = tool_used
