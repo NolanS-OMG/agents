@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     port: int = 8000
 
     redis_url: str = Field(default="redis://redis:6379/0")
+    tenant_id: str = Field(default="santa_lena")
 
     llm_provider: str = Field(default="openrouter")
     llm_api_key: str = Field(default="")

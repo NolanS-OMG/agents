@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
+from src.app.core.config import settings
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
-from src.app.tools.buscar_conocimiento import BuscarConocimiento
-from src.app.tools.consultar_info_negocio import ConsultarInfoNegocio
-from src.app.tools.ejecutar_accion import EjecutarAccion
+from src.app.services.tenant import load_tenant
+from src.app.tools.registry import get_tools_for_tenant
 
 router = APIRouter(tags=["chat"])
 
@@ -28,9 +28,10 @@ async def chat(request: Request, body: ChatMessage) -> ChatResponse:
     http_client = request.app.state.http_client
     redis = request.app.state.redis
 
+    tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
-    tools = [EjecutarAccion(), ConsultarInfoNegocio(), BuscarConocimiento()]
-    agent = AgentRouter(llm=llm, tools=tools)
+    tools = get_tools_for_tenant(tenant)
+    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.prompt)
 
     session = SessionManager(redis)
     history = await session.get_history(body.session_id)

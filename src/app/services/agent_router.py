@@ -4,7 +4,7 @@ from typing import Any
 from src.app.services.llm.base import LLMMessage, LLMProvider
 from src.app.tools.base import BaseTool, ToolError, ToolResult
 
-SYSTEM_PROMPT = """Eres un asistente virtual de atención al cliente. Tu trabajo es ayudar al usuario de forma clara, amable y eficiente.
+BASE_SYSTEM_PROMPT = """Eres un asistente virtual de atención al cliente. Tu trabajo es ayudar al usuario de forma clara, amable y eficiente.
 
 REGLAS:
 1. Antes de ejecutar una acción, SIEMPRE asegúrate de tener todos los datos necesarios. Pregunta al usuario si falta información.
@@ -14,9 +14,9 @@ REGLAS:
 5. Si no puedes resolver algo, indica que transferirás al usuario con un agente humano.
 
 HERRAMIENTAS DISPONIBLES:
-- ejecutar_accion: Para realizar acciones (agendar citas, registrar datos, enviar correos, etc.)
-- consultar_informacion_negocio: Para consultar horarios, ubicaciones, políticas y servicios.
-- buscar_base_conocimiento_extensa: Para buscar en documentación técnica o catálogos extensos.
+- ejecutar_accion: Para realizar acciones con efecto secundario (pedidos, reservaciones, etc.)
+- consultar_informacion_negocio: Para consultar menú, horarios, ubicación, promociones.
+- buscar_base_conocimiento_extensa: Para buscar platillos o productos específicos por nombre o ingrediente.
 """
 
 MAX_TOOL_ITERATIONS = 5
@@ -37,10 +37,18 @@ class AgentResult:
 
 
 class AgentRouter:
-    def __init__(self, llm: LLMProvider, tools: list[BaseTool]) -> None:
+    def __init__(
+        self,
+        llm: LLMProvider,
+        tools: list[BaseTool],
+        tenant_prompt: str = "",
+    ) -> None:
         self._llm = llm
         self._tools = {tool.name: tool for tool in tools}
         self._tool_schemas = [tool.schema() for tool in tools]
+        self._system_prompt = BASE_SYSTEM_PROMPT
+        if tenant_prompt:
+            self._system_prompt += f"\n\nCONTEXTO DEL NEGOCIO:\n{tenant_prompt}"
 
     async def run(
         self,
@@ -118,7 +126,7 @@ class AgentRouter:
         user_message: str,
         history: list[LLMMessage] | None,
     ) -> list[LLMMessage]:
-        messages = [LLMMessage(role="system", content=SYSTEM_PROMPT)]
+        messages = [LLMMessage(role="system", content=self._system_prompt)]
         if history:
             messages.extend(history)
         messages.append(LLMMessage(role="user", content=user_message))
