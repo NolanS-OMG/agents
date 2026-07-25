@@ -30,13 +30,13 @@ AGENTE PADRE (LLM Router)
 - [x] CLAUDE.md con convenciones
 - [x] Servicio LLM con provider factory (OpenAI-compatible)
 - [x] Esqueleto de las 3 tools con patrón Error 400
-- [ ] Endpoint /chat conectado al LLM Router
-- [ ] System prompt del Agente Padre
-- [ ] Loop de tool-calling (recibir tool_calls, ejecutar, responder)
+- [x] Endpoint /chat conectado al LLM Router
+- [x] System prompt del Agente Padre
+- [x] Loop de tool-calling (recibir tool_calls, ejecutar, responder)
+- [x] Gestión de sesión en Redis (historial por session_id)
+- [x] Tests robustos del AgentRouter (21 tests: unitarios + integración)
 
 ### Fase 2: Agente funcional básico
-- [ ] Implementar el loop completo de orquestación (LLM → tool_call → resultado → respuesta)
-- [ ] Gestión de sesión en Redis (historial por session_id)
 - [ ] Compresión/resumen de historial cuando excede N tokens
 - [ ] Tool 2 funcional: cargar info de negocio desde YAML/Markdown por tenant
 - [ ] Tool 1 funcional: dispatch a sub-workflows con validación de campos
