@@ -1,0 +1,51 @@
+nombre: Santa Leña
+slogan: El Auténtico Sabor de Santiago
+descripcion: >
+  Restaurante familiar que ofrece hamburguesas artesanales, tacos, pizzas en horno
+  de adobe con leña de mezquite, y especialidades de inspiración italiana. Ingredientes
+  de calidad en un ambiente cálido con amplio jardín al aire libre.
+
+direccion: Calle Benito Juárez 296, 67320 Santiago N.L., México
+telefono: "+528110889496"
+whatsapp: "+528110889496"
+
+horarios:
+  todos_los_dias: "4:00 PM a 12:30 AM"
+
+redes_sociales:
+  facebook: Santa Leña
+  instagram: santa_lena_oficial
+  tiktok: santalena.nl
+
+tipo_cocina:
+  - Italiana
+  - Americana
+  - Parrilla Norestense
+
+certificaciones:
+  - Slow Food México
+  - Certified Angus Beef
+
+notas_importantes:
+  - Todas las hamburguesas incluyen papas gratis
+  - Todos los boneless incluyen papas gratis
+  - Agrega queso a tus papas por solo $20
+  - Agrega un elote a tu orden por solo $20
+  - Pizzas horneadas en horno de adobe con leña de mezquite
+
+promociones:
+  - dia: Martes
+    descripcion: "Hamburguesa Americana 2x $210"
+  - dia: Miércoles
+    descripcion: "Miercolitros: 2 litros x $210"
+  - dia: Miércoles
+    descripcion: "Pizza 8\", Pasta Roja, Coca 350ml por $150"
+  - dia: Jueves
+    descripcion: "2x1 en postres"
+  - dia: Jueves
+    descripcion: "Boneless 2x $260"
+
+menu_junior:
+  precio: $99
+  incluye: limonada
+  descripcion: "Todos los platillos junior a $99, incluye limonada"

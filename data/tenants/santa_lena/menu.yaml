@@ -1,0 +1,386 @@
+entradas:
+  - nombre: Papas Fritas
+    precio: 80
+  - nombre: Papas Santas
+    descripcion: queso americano y tocino frito
+    precio: 120
+  - nombre: Papas Mozzarella
+    descripcion: queso mozzarella y perejil frito
+    precio: 100
+  - nombre: Papas Norteñas
+    descripcion: bañadas en queso americano con sirloin asado y tocino frito
+    precio: 140
+  - nombre: Dedos de queso
+    descripcion: 6 piezas acompañados de salsa ragu
+    precio: 100
+  - nombre: Elote amarillo
+    descripcion: elote bañado en salsa de la casa
+    precio: 50
+  - nombre: Ignacios
+    descripcion: Nachos bañados en queso americano, carne asada, pico de gallo y chile jalapeño
+    precio: 170
+
+tacos:
+  - nombre: Top Sirloin Prime
+    descripcion: 4 piezas con carne asada acompañados de papas fritas
+    precio: 160
+  - nombre: Rib Eye
+    descripcion: 1 pieza de rib eye delgado costra de queso acompañado de papas fritas
+    precio: 70
+  - nombre: Trompo
+    descripcion: 4 piezas con carne de trompo acompañados de papas fritas
+    precio: 150
+  - nombre: Campechanas
+    descripcion: 2 piezas en tortilla de harina con queso y aguacate acompañado de papas fritas
+    precio: 150
+
+volcanes:
+  - nombre: Aguja Norteña
+    descripcion: 2 piezas de tostadas con carne asada, cama de queso coronadas con aguacate y cebolla curtida
+    precio: 190
+  - nombre: Trompo
+    descripcion: 2 piezas de tostadas con carne de trompo, cama de queso coronadas con aguacate, piña y cebolla curtida
+    precio: 150
+
+cortes:
+  nota: Acompañados de papa horneada con queso y tocino, salchicha, cebollin asado, salsa y tortillas
+  items:
+    - nombre: Aguja Norteña
+      peso: 250g
+      precio: 300
+    - nombre: T-Bone
+      peso: 400g
+      precio: 350
+    - nombre: New York
+      peso: 400g
+      precio: 350
+    - nombre: Rib Eye
+      peso: 500g
+      precio: 500
+
+parrilladas:
+  - nombre: Parrillada Cielo y Tierra
+    descripcion: 1 aguja norteña, pollo a la plancha, salchicha, cebollin y dos papas horneadas
+    precio: 500
+  - nombre: Parrillada Cielo, Mar y Tierra
+    descripcion: 1 aguja, 1 t-bon, pollo a la plancha, camarones, salchicha, cebollin, 2 papas horneadas
+    precio: 1000
+
+extras:
+  - nombre: Guacamole
+    precio: 90
+  - nombre: Cebollin Asado
+    precio: 40
+  - nombre: Queso Fundido
+    precio: 90
+  - nombre: Queso Norteñito
+    precio: 80
+  - nombre: Tuetano
+    precio: 50
+  - nombre: Salchicha Roja
+    precio: 40
+  - nombre: Aguacate
+    precio: 20
+  - nombre: Queso
+    precio: 20
+
+pastas:
+  nota: Disponibles con pollo o camarón (precio entre paréntesis)
+  items:
+    - nombre: Alfredo
+      descripcion: Fusión de cremas y quesos
+      precio_pollo: 120
+      precio_camaron: 160
+    - nombre: Carbonara
+      descripcion: Fusión de cremas, quesos, tocino y huevo
+      precio_pollo: 150
+      precio_camaron: 200
+    - nombre: Roja
+      descripcion: Salsa de tomate con especies
+      precio_pollo: 100
+      precio_camaron: 140
+    - nombre: Rosa
+      descripcion: Salsa de tomate con especies y cremas
+      precio_pollo: 100
+      precio_camaron: 140
+    - nombre: Italiana
+      descripcion: Tomate cherry, champiñones y albahaca
+      precio_pollo: 150
+      precio_camaron: 190
+    - nombre: Mac and Cheese
+      descripcion: Mezcla de los quesos de la casa
+      precio: 130
+    - nombre: Mac and Cheese Boneless
+      descripcion: Cubiertos de boneless en salsa deseada
+      precio: 190
+    - nombre: Mac and Bacon Crunchy
+      descripcion: Con cubierta de tocino frito y horneado
+      precio: 180
+
+ensaladas:
+  - nombre: Ensalada Santa
+    descripcion: Lechuga, tomate cherry, jamon de pavo, queso mozzarella, aguacate y pollo a la plancha
+    precio: 180
+  - nombre: Ensalada de Frutos
+    descripcion: Lechuga, espinaca, fresa, manzana, frutos secos, nuez y queso de cabra bañada en aderezo amor de piloncillo
+    precio: 180
+  - nombre: Boneless Salad
+    descripcion: Lechuga, aguacate, pepino, tortilla deshidratada, queso mozarella, boneless en salsa a elección bañada en ranch
+    precio: 180
+
+mariscos:
+  - nombre: Tacos Gobernador
+    descripcion: 3 piezas con camaron estilo gobernador, papas fritas y ensalada
+    precio: 180
+  - nombre: Tostada de Salmon
+    descripcion: 1 pieza con salmon, aderezo de la casa, mango y aguacate
+    precio: 190
+  - nombre: Tostada de Atun
+    descripcion: 1 pieza con atun, mango, chile serrano y aguacate
+    precio: 180
+
+pizzas:
+  nota: En horno de adobe con leña de mezquite
+  arma_tu_pizza:
+    precio_14: 250
+    precio_8: 150
+    ingredientes:
+      - Pepperoni
+      - Jamón
+      - Salchicha
+      - Salami
+      - Chorizo
+      - Chistorra
+      - Espinaca
+      - Cebolla
+      - Calabaza
+      - Zanahoria
+      - Jalapeño
+      - Piña
+      - Aceituna negra
+      - Alcaparra
+      - Champiñones
+      - Tomate
+      - Pimiento verde
+  especialidades:
+    - nombre: Gamberetto
+      descripcion: 16 piezas camaron estilo gobernador, pimiento y cebolla
+      precio_14: 350
+      precio_8: 240
+    - nombre: De Boneless
+      descripcion: En la salsa deseada y toques de aderezo ranch
+      precio_14: 290
+      precio_8: 190
+    - nombre: Norteña
+      descripcion: Carne asada con trocitos de queso norteñito y salchicha roja
+      precio_14: 320
+      precio_8: 200
+    - nombre: Jamón Serrano
+      descripcion: Jamón serrano, espinaca y aceituna negra
+      precio_14: 290
+      precio_8: 190
+    - nombre: Margarita
+      descripcion: Queso, tomate fresco, albahaca, mejorana, tomillo, orégano
+      precio_14: 250
+      precio_8: 150
+    - nombre: Quattro Stagioni
+      descripcion: 1/4 hawaiana, 1/4 pepperoni, 1/4 margarita, 1/4 jamón serrano
+      precio_14: 300
+      precio_8: 220
+    - nombre: Diavola
+      descripcion: Super cargada de pepperoni
+      precio_14: 300
+      precio_8: 200
+    - nombre: Bacon BBQ
+      descripcion: Tocino, cebolla morada y un toque de bbq
+      precio_14: 290
+      precio_8: 190
+
+hamburguesas:
+  nota: Res o Pollo. Todas incluyen papas gratis. Certified Angus Beef.
+  res:
+    - nombre: Clasica Americana
+      descripcion: Pan, 220gr de carne y queso americano
+      precio: 130
+    - nombre: La Santa (Ham del Pueblo)
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamon de pavo y queso americano
+      precio: 140
+    - nombre: Guacamole
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamon de pavo, queso americano y guacamole
+      precio: 160
+    - nombre: Bacon
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamón de pavo, queso americano y tocino
+      precio: 160
+    - nombre: Humo y Fuego
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamón de pavo, queso americano, chiles habanero y serrano con salsa super picante
+      precio: 180
+    - nombre: Cuatro Quesos
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamon de pavo, queso americano y 200gr de combinación de quesos
+      precio: 160
+    - nombre: Hawaiana
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamón de pavo, queso americano, rodaja de piña envuelta tocino y bañada en mostaza dulce
+      precio: 170
+    - nombre: Pacifica
+      descripcion: Pan, lechuga, tomate, cebolla, 220gr de carne, jamón de pavo, queso americano, camarones enchipotlados y tocino
+      precio: 190
+    - nombre: La Jefa
+      descripcion: Pan 220gr de carne, dos rebanadas de queso americano, tocino, aros de cebolla empanizados y bbq con mostaza dulce
+      precio: 170
+  pollo:
+    - nombre: Pecadora
+      descripcion: Pan, pollo cruji BBQ, tocino, lechuga con santo aderezo
+      precio: 160
+    - nombre: Crispy Chicken
+      descripcion: Pan, ensalada de col, zanahoria y santo aderezo
+      precio: 180
+    - nombre: Cruji
+      descripcion: Pan, espinaca, arugula, tomate pollo cruji jamón, queso y santo aderezo
+      precio: 160
+    - nombre: Hawaiana Pollo
+      descripcion: Pan, bby espinaca, tomate, pollo plancha, rodaja de piña y tocino bañada en mostaza dulce
+      precio: 180
+    - nombre: Chicken Fin
+      descripcion: Pan, pollo plancha, jamon de pavo, queso, espinaca, arugula, tomate, santo aderezo
+      precio: 160
+
+boneless_y_alitas:
+  nota: Todos incluyen papas gratis. Salsas disponibles.
+  salsas: [De la Casa, Mango Habanero, Búfalo, Búfalo/Ranch, Chipotle, BBQ, Limón Pepper, Parmesano]
+  items:
+    - nombre: Orden de boneless
+      descripcion: 250gr bañados en tu salsa favorita, con zanahoria, apio, aderezo ranch y papas fritas
+      precio: 150
+    - nombre: Orden de alitas
+      descripcion: 250gr bañadas en tu salsa favorita, con zanahoria, apio, aderezo ranch y papas fritas
+      precio: 150
+    - nombre: 1/2 KG de alitas
+      descripcion: 1/2KG bañadas en tu salsa favorita, con zanahoria, apio, aderezo ranch y papas fritas
+      precio: 230
+    - nombre: 1 KG de alitas
+      descripcion: 1KG bañadas en tu salsa favorita, con zanahoria, apio, aderezo ranch y papas fritas
+      precio: 430
+  samplers:
+    - nombre: Sampler Tercia
+      descripcion: 250gr de boneless o alitas, papas fritas, 1/2 elote amarillo, apio, zanahoria y aderezos
+      precio: 170
+    - nombre: Sampler Boneless
+      descripcion: 200gr de boneless, 6 dedos de queso, 2 elotes amarillo, apio, zanahoria y aderezos
+      precio: 230
+    - nombre: Sampler Alitas
+      descripcion: 200gr de alitas, 100gr de papas, 5 aros de cebolla, apio, zanahoria y aderezos
+      precio: 230
+
+postres_y_cafes:
+  - nombre: Pan de Elote
+    descripcion: Con nieve, cajeta y nuez
+    precio: 150
+  - nombre: Brownie
+    descripcion: Con nieve y chocolate
+    precio: 150
+  - nombre: Pastel Matilda
+    descripcion: Pastel de chocolate
+    precio: 100
+  - nombre: Malteadas
+    descripcion: Vainilla, Fresa, Chocolate Oreo
+    precio: 60
+  - nombre: Americano
+    precio: 35
+  - nombre: Cappuchino
+    precio: 60
+  - nombre: Latte
+    precio: 50
+  - nombre: Mocha
+    precio: 60
+  - nombre: Affogato
+    precio: 70
+
+bebidas:
+  refrescos:
+    precio: 40
+    opciones: [Coca Regular, Coca Light, Fresca, Sangría, Agua Mineral, Agua Tónica, Agua Ciel, Boost]
+  aguas_frescas:
+    - nombre: Limonada
+      precio: 60
+    - nombre: Pepino Limón
+      precio: 60
+    - nombre: Naranjada
+      precio: 60
+    - nombre: Jamaica
+      precio: 60
+    - nombre: Fresada
+      precio: 80
+    - nombre: Mangonada
+      precio: 70
+  cervezas:
+    - nombre: Corona Extra
+      precio_unidad: 40
+      precio_cubeta: 180
+    - nombre: Modelo Especial
+      precio_unidad: 45
+      precio_cubeta: 200
+    - nombre: Negra Modelo
+      precio_unidad: 45
+      precio_cubeta: 200
+    - nombre: Victoria
+      precio_unidad: 40
+      precio_cubeta: 180
+    - nombre: Pacifico Clara
+      precio_unidad: 40
+      precio_cubeta: 180
+    - nombre: Pacifico Suave
+      precio_unidad: 40
+      precio_cubeta: 180
+    - nombre: Michelob Ultra
+      precio_unidad: 40
+      precio_cubeta: 180
+    - nombre: Michelob Gold
+      precio_unidad: 90
+      precio_cubeta: 420
+    - nombre: Stella Artois
+      precio_unidad: 60
+      precio_cubeta: 250
+
+cocteleria:
+  cocteles:
+    - nombre: Machu Picchu
+      precio: 160
+    - nombre: Red Pasion
+      precio: 160
+    - nombre: Limonada Eléctrica
+      precio: 120
+    - nombre: Bay Breeze
+      precio: 120
+    - nombre: Carajillo 43
+      precio: 150
+    - nombre: Mezcalita Jamaica
+      precio: 90
+    - nombre: Mezcalita Mango
+      precio: 100
+    - nombre: Piña Colada
+      precio: 90
+    - nombre: Gin Tonic Frutos Rojos
+      precio: 160
+    - nombre: Mojito Frutos Rojos
+      precio: 150
+    - nombre: Blueberry Margarita
+      precio: 120
+    - nombre: Bloody Tequila Sunset
+      precio: 120
+    - nombre: Whiskey Sunrise
+      precio: 90
+    - nombre: Blue Hawaiian
+      precio: 90
+    - nombre: Mojito
+      precio: 100
+  litros:
+    precio: 150
+    opciones: [Michelada, Clamato, Mango Chela, Perro Salado, Paloma, Margarita Limón, Margarita Fresa, Margarita Cereza, Margarita Mango, Piña Colada, Jaibol, Jackie Chan, Desarmador, Cruzificado, Pantera Rosa, Azulito, Rojito, Tequila Sunrise, Baby Mango, Vampiro]
+  vinos:
+    - nombre: Copa Vino
+      precio: 80
+    - nombre: Tinto de Verano
+      precio: 90
+    - nombre: Sangría Dorada
+      precio: 120
+    - nombre: Clericot
+      precio: 120
