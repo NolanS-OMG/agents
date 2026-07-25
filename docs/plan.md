@@ -36,11 +36,15 @@ AGENTE PADRE (LLM Router)
 - [x] Gestión de sesión en Redis (historial por session_id)
 - [x] Tests robustos del AgentRouter (21 tests: unitarios + integración)
 
-### Fase 2: Agente funcional básico
-- [ ] Compresión/resumen de historial cuando excede N tokens
-- [ ] Tool 2 funcional: cargar info de negocio desde YAML/Markdown por tenant
-- [ ] Tool 1 funcional: dispatch a sub-workflows con validación de campos
-- [ ] Handover protocol: escalar_a_humano cuando el agente detecta frustración
+### Fase 2: Agente funcional básico (COMPLETADA)
+- [x] Sistema de tenants con OKF v0.2 (markdown + YAML frontmatter)
+- [x] Tool 2 funcional: info de negocio desde documentos OKF
+- [x] Tool 1 funcional: validación dinámica de campos desde acciones OKF
+- [x] Tool 3: lectura directa de documentos por ruta (el LLM navega el índice)
+- [x] Estilos de comunicación configurables (chat/voz) con few-shot examples
+- [x] CLI para testing en terminal
+- [ ] Compresión/resumen de historial cuando excede N tokens (diferido)
+- [ ] Handover protocol: escalar_a_humano (diferido)
 
 ### Fase 3: RAG y conocimiento extenso
 - [ ] Integración con vector store (pgvector o similar)
