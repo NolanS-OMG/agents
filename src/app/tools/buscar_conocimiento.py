@@ -18,18 +18,19 @@ class BuscarConocimiento(BaseTool):
 
     @property
     def description(self) -> str:
-        return (
-            "Busca en el menú y catálogo completo del negocio. "
-            "Útil para encontrar platillos por nombre, ingrediente o categoría."
-        )
+        return "Lee uno o más documentos de la base de conocimiento por su ruta."
 
     async def execute(self, **kwargs: Any) -> ToolResult:
-        query = kwargs.get("query", "")
-        if not self._tenant:
-            return ToolResult(status=200, data={"resultados": [], "query": query})
+        rutas = kwargs.get("documentos", [])
+        if not self._tenant or not rutas:
+            return ToolResult(status=200, data={"contenido": ""})
 
-        resultados = self._tenant.search_menu(query)
-        return ToolResult(status=200, data={"resultados": resultados, "query": query})
+        contenidos: dict[str, str] = {}
+        for ruta in rutas:
+            doc = self._tenant.read_doc(ruta)
+            contenidos[ruta] = doc if doc else f"[Documento '{ruta}' no encontrado]"
+
+        return ToolResult(status=200, data={"contenido": contenidos})
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -40,12 +41,13 @@ class BuscarConocimiento(BaseTool):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "Búsqueda: nombre de platillo, ingrediente, o categoría",
+                        "documentos": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Rutas de documentos a leer (ej: ['menu/hamburguesas.md', 'menu/pizzas.md'])",
                         },
                     },
-                    "required": ["query"],
+                    "required": ["documentos"],
                 },
             },
         }

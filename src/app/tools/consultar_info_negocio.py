@@ -19,25 +19,20 @@ class ConsultarInfoNegocio(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Provee información del negocio: "
-            "menú, horarios, ubicación, políticas, promociones."
+            "Consulta información general del negocio que ya tienes en contexto: "
+            "horarios, ubicación, contacto, promociones. Usa esta tool solo si "
+            "necesitas confirmar un dato que no recuerdas del contexto."
         )
 
     async def execute(self, **kwargs: Any) -> ToolResult:
-        consulta = kwargs.get("consulta", "").lower()
+        consulta = kwargs.get("consulta", "")
         if not self._tenant:
-            return ToolResult(status=200, data={"info": "Sin configuración de negocio."})
+            return ToolResult(status=200, data={"info": "Sin configuración."})
 
-        if "menu" in consulta or "carta" in consulta or "platillo" in consulta:
-            return ToolResult(status=200, data={"info": self._tenant.get_menu_as_text()})
-
-        if "horario" in consulta or "ubicacion" in consulta or "direccion" in consulta or "donde" in consulta:
-            return ToolResult(status=200, data={"info": self._tenant.get_info_general()})
-
-        if "promocion" in consulta or "oferta" in consulta or "descuento" in consulta:
-            return ToolResult(status=200, data={"info": self._tenant.get_promociones()})
-
-        return ToolResult(status=200, data={"info": self._tenant.get_info_general()})
+        doc = self._tenant.read_doc("negocio/info-general.md")
+        promos = self._tenant.read_doc("negocio/promociones.md")
+        contenido = f"{doc or ''}\n\n{promos or ''}"
+        return ToolResult(status=200, data={"info": contenido, "consulta": consulta})
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -50,7 +45,7 @@ class ConsultarInfoNegocio(BaseTool):
                     "properties": {
                         "consulta": {
                             "type": "string",
-                            "description": "Qué consultar: menu, horarios, ubicacion, promociones, o general",
+                            "description": "Qué dato necesitas verificar",
                         },
                     },
                     "required": ["consulta"],

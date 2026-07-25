@@ -22,11 +22,6 @@ class OKFDocument:
     def title(self) -> str:
         return str(self.frontmatter.get("title", ""))
 
-    @property
-    def tags(self) -> list[str]:
-        raw = self.frontmatter.get("tags", [])
-        return list(raw) if isinstance(raw, list) else []
-
     def _parse(self, raw: str) -> tuple[dict[str, Any], str]:
         if not raw.startswith("---"):
             return {}, raw
@@ -47,9 +42,14 @@ class TenantConfig:
 
     def _load_all_docs(self) -> None:
         for md_file in self._path.rglob("*.md"):
-            if md_file.name in ("index.md", "log.md"):
+            if md_file.name in ("log.md",):
                 continue
             self._docs.append(OKFDocument(md_file))
+
+    @property
+    def index(self) -> str:
+        doc = self._find_doc_by_path("index.md")
+        return doc.body if doc else ""
 
     @property
     def negocio(self) -> dict[str, Any]:
@@ -59,9 +59,9 @@ class TenantConfig:
         return doc.frontmatter
 
     def get_prompt(self, estilo: str = "chat") -> str:
+        estilo_doc = self._find_estilo(estilo)
         info = self._find_doc(type_="Negocio")
         promos = self._find_doc(type_="Promociones")
-        estilo_doc = self._find_estilo(estilo)
         parts: list[str] = []
         if estilo_doc:
             parts.append(estilo_doc.body)
@@ -69,29 +69,22 @@ class TenantConfig:
             parts.append(info.body)
         if promos:
             parts.append(promos.body)
+        parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
         return "\n\n".join(parts)
 
     @property
     def prompt(self) -> str:
         return self.get_prompt()
 
-    @property
-    def menu_docs(self) -> list[OKFDocument]:
-        return [d for d in self._docs if d.type == "Menú"]
-
-    @property
-    def accion_docs(self) -> list[OKFDocument]:
-        return [d for d in self._docs if d.type == "Acción"]
-
-    def get_menu_as_text(self) -> str:
-        parts: list[str] = []
-        for doc in self.menu_docs:
-            parts.append(doc.body)
-        return "\n\n".join(parts)
+    def read_doc(self, ruta: str) -> str | None:
+        doc = self._find_doc_by_path(ruta)
+        return doc.body if doc else None
 
     def get_acciones_config(self) -> list[dict[str, Any]]:
         acciones: list[dict[str, Any]] = []
-        for doc in self.accion_docs:
+        for doc in self._docs:
+            if doc.type != "Acción":
+                continue
             campos_req = self._extract_table_column(doc.body, "Campos requeridos", 0)
             campos_opt = self._extract_table_column(doc.body, "Campos opcionales", 0)
             categoria = self._slug_from_title(doc.title)
@@ -104,28 +97,16 @@ class TenantConfig:
             })
         return acciones
 
-    def get_info_general(self) -> str:
-        doc = self._find_doc(type_="Negocio")
-        return doc.body if doc else ""
-
-    def get_promociones(self) -> str:
-        doc = self._find_doc(type_="Promociones")
-        return doc.body if doc else ""
-
-    def search_menu(self, query: str) -> list[str]:
-        query_lower = query.lower()
-        results: list[str] = []
-        for doc in self.menu_docs:
-            for line in doc.body.split("\n"):
-                if "|" in line and query_lower in line.lower():
-                    clean = line.strip().strip("|").strip()
-                    if clean and not clean.startswith("-"):
-                        results.append(clean)
-        return results[:15]
-
     def _find_doc(self, type_: str) -> OKFDocument | None:
         for doc in self._docs:
             if doc.type == type_:
+                return doc
+        return None
+
+    def _find_doc_by_path(self, ruta: str) -> OKFDocument | None:
+        target = self._path / ruta
+        for doc in self._docs:
+            if doc.path == target:
                 return doc
         return None
 

@@ -61,11 +61,11 @@ async def test_consultar_info_negocio_returns_result() -> None:
 @pytest.mark.anyio
 async def test_buscar_conocimiento_returns_result() -> None:
     tool = BuscarConocimiento()
-    result = await tool.execute(query="políticas de devolución")
+    result = await tool.execute(documentos=["menu/hamburguesas.md"])
 
     assert isinstance(result, ToolResult)
     assert result.status == 200
-    assert result.data["query"] == "políticas de devolución"
+    assert result.data["contenido"] == ""
 
 
 @pytest.mark.anyio
