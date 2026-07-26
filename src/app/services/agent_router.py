@@ -19,6 +19,9 @@ HERRAMIENTAS DISPONIBLES:
 - ejecutar_accion: Para acciones con efecto secundario (pedidos, reservaciones). SOLO esta requiere confirmar datos.
 - consultar_informacion_negocio: Para horarios, ubicación, promociones, info general.
 - buscar_base_conocimiento_extensa: Para buscar en el menú por categoría, nombre o ingrediente. Devuelve la sección completa relevante.
+
+DATOS YA DISPONIBLES (no pidas estos al usuario):
+- Teléfono del cliente: ya lo tienes por el canal de comunicación. Usa el valor "{sender_id}" como telefono en parametros_extra.
 """
 
 MAX_TOOL_ITERATIONS = 5
@@ -66,11 +69,12 @@ class AgentRouter:
         llm: LLMProvider,
         tools: list[BaseTool],
         tenant_prompt: str = "",
+        sender_id: str = "",
     ) -> None:
         self._llm = llm
         self._tools = {tool.name: tool for tool in tools}
         self._tool_schemas = [tool.schema() for tool in tools]
-        self._system_prompt = BASE_SYSTEM_PROMPT
+        self._system_prompt = BASE_SYSTEM_PROMPT.format(sender_id=sender_id or "desconocido")
         if tenant_prompt:
             self._system_prompt += f"\n\nCONTEXTO DEL NEGOCIO:\n{tenant_prompt}"
 
