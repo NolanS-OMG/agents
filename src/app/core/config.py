@@ -40,5 +40,11 @@ class Settings(BaseSettings):
     whisper_device: str = Field(default="cuda")
     tts_voice: str = Field(default="es-MX-DaliaNeural")
 
+    twilio_enabled: bool = Field(default=False)
+    twilio_account_sid: str = Field(default="")
+    twilio_auth_token: str = Field(default="")
+    twilio_phone_number: str = Field(default="")
+    vad_silence_ms: int = Field(default=700)
+
 
 settings = Settings()
