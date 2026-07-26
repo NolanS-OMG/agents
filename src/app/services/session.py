@@ -29,3 +29,15 @@ class SessionManager:
         trimmed = messages[-MAX_HISTORY_MESSAGES:]
         data = json.dumps([m.model_dump() for m in trimmed])
         await self._redis.set(key, data, ex=SESSION_TTL)
+
+    async def mark_needs_human(self, session_id: str) -> None:
+        key = f"session:{session_id}:needs_human"
+        await self._redis.set(key, "1", ex=SESSION_TTL)
+
+    async def is_needs_human(self, session_id: str) -> bool:
+        key = f"session:{session_id}:needs_human"
+        return await self._redis.exists(key) > 0
+
+    async def release_human(self, session_id: str) -> None:
+        key = f"session:{session_id}:needs_human"
+        await self._redis.delete(key)

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, Request, Response
 from src.app.channels.base import OutgoingMessage
 from src.app.channels.whatsapp import WhatsAppAdapter
 from src.app.core.config import settings
+from src.app.middleware.rate_limit import check_rate_limit
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
@@ -41,10 +42,33 @@ async def whatsapp_webhook(request: Request) -> Response:
 
     incoming = adapter.parse_incoming(payload)
     if not incoming:
-        logger.debug(f"[WA] Payload ignorado (no es mensaje de texto): {payload}")
         return Response(content="OK", status_code=200)
 
     logger.warning(f"[WA] Mensaje de {incoming.sender_id}: {incoming.message}")
+
+    if redis:
+        allowed = await check_rate_limit(
+            redis, incoming.sender_id,
+            max_msgs=settings.rate_limit_messages,
+            window_secs=settings.rate_limit_window,
+        )
+        if not allowed:
+            logger.warning(f"[WA] Rate limit excedido para {incoming.sender_id}")
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="Estás enviando muchos mensajes, espera un momento por favor.",
+            ))
+            return Response(content="OK", status_code=200)
+
+        session = SessionManager(redis)
+        if await session.is_needs_human(incoming.sender_id):
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="Tu conversación está siendo atendida por un agente humano. Te responderá pronto.",
+            ))
+            return Response(content="OK", status_code=200)
 
     tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
@@ -52,11 +76,12 @@ async def whatsapp_webhook(request: Request) -> Response:
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 
     history = []
-    try:
-        session = SessionManager(redis)
-        history = await session.get_history(incoming.sender_id)
-    except Exception:
-        logger.warning("[WA] Redis no disponible, sin historial")
+    if redis:
+        try:
+            session = SessionManager(redis)
+            history = await session.get_history(incoming.sender_id)
+        except Exception:
+            logger.warning("[WA] Redis no disponible, sin historial")
 
     try:
         result = await agent.run(user_message=incoming.message, history=history)
@@ -71,15 +96,20 @@ async def whatsapp_webhook(request: Request) -> Response:
 
     logger.warning(f"[WA] Respuesta del agente: {result.response[:100]}")
 
-    try:
+    if result.needs_human and redis:
         session = SessionManager(redis)
-        relevant_messages = [
-            m for m in result.messages
-            if m.role in ("user", "assistant") and m.content
-        ]
-        await session.save_history(incoming.sender_id, relevant_messages)
-    except Exception:
-        logger.warning("[WA] Redis no disponible, no se guardó historial")
+        await session.mark_needs_human(incoming.sender_id)
+
+    if redis:
+        try:
+            session = SessionManager(redis)
+            relevant_messages = [
+                m for m in result.messages
+                if m.role in ("user", "assistant") and m.content
+            ]
+            await session.save_history(incoming.sender_id, relevant_messages)
+        except Exception:
+            logger.warning("[WA] Redis no disponible, no se guardó historial")
 
     await adapter.send_reply(OutgoingMessage(
         channel="whatsapp",

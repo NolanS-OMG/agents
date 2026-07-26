@@ -30,11 +30,13 @@ class AgentResult:
         tool_used: str | None,
         messages: list[LLMMessage],
         usage: dict[str, Any],
+        needs_human: bool = False,
     ) -> None:
         self.response = response
         self.tool_used = tool_used
         self.messages = messages
         self.usage = usage
+        self.needs_human = needs_human
 
 
 class AgentRouter:
@@ -84,6 +86,15 @@ class AgentRouter:
             ))
 
             tool_result = await self._execute_tool(tool_name, tool_args)
+
+            if tool_name == "transferir_a_humano" and isinstance(tool_result, ToolResult):
+                return AgentResult(
+                    response=tool_result.data.get("mensaje", "Te transfiero con un agente humano."),
+                    tool_used=tool_name,
+                    messages=messages,
+                    usage=response.usage,
+                    needs_human=True,
+                )
 
             messages.append(LLMMessage(
                 role="tool",

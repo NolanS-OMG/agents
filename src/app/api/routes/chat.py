@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
 
 from src.app.core.config import settings
@@ -49,3 +49,12 @@ async def chat(request: Request, body: ChatMessage) -> ChatResponse:
         response=result.response,
         tool_used=result.tool_used,
     )
+
+
+@router.post("/sessions/{session_id}/release")
+async def release_session(request: Request, session_id: str) -> Response:
+    redis = request.app.state.redis
+    if redis:
+        session = SessionManager(redis)
+        await session.release_human(session_id)
+    return Response(content="OK", status_code=200)

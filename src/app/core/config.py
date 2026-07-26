@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str = Field(default="")
     whatsapp_verify_token: str = Field(default="agente_ia_verify_2026")
 
+    rate_limit_messages: int = Field(default=10)
+    rate_limit_window: int = Field(default=60)
+
+    history_compression_threshold: int = Field(default=16)
+    history_keep_recent: int = Field(default=10)
+
     llm_provider: str = Field(default="openrouter")
     llm_api_key: str = Field(default="")
     llm_model: str = Field(default="meta-llama/llama-3.3-70b-instruct:free")
