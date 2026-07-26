@@ -1,8 +1,11 @@
+import logging
 from typing import Any
 
 from httpx import AsyncClient
 
 from src.app.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
+
+logger = logging.getLogger(__name__)
 
 GRAPH_API_URL = "https://graph.facebook.com/v25.0"
 
@@ -27,14 +30,21 @@ class WhatsAppAdapter(ChannelAdapter):
             msg = messages[0]
             if msg.get("type") != "text":
                 return None
+            sender = self._normalize_mx_number(msg["from"])
             return IncomingMessage(
                 channel="whatsapp",
-                sender_id=msg["from"],
+                sender_id=sender,
                 message=msg["text"]["body"],
                 raw=payload,
             )
         except (KeyError, IndexError):
             return None
+
+    @staticmethod
+    def _normalize_mx_number(phone: str) -> str:
+        if phone.startswith("521") and len(phone) == 13:
+            return "52" + phone[3:]
+        return phone
 
     async def send_reply(self, message: OutgoingMessage) -> bool:
         response = await self._client.post(
@@ -51,4 +61,8 @@ class WhatsAppAdapter(ChannelAdapter):
                 "Content-Type": "application/json",
             },
         )
+        if response.status_code != 200:
+            logger.error(f"[WA] Error enviando mensaje: {response.status_code} {response.text}")
+        else:
+            logger.info(f"[WA] Mensaje enviado OK a {message.recipient_id}")
         return response.status_code == 200

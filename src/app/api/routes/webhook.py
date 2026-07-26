@@ -41,9 +41,10 @@ async def whatsapp_webhook(request: Request) -> Response:
 
     incoming = adapter.parse_incoming(payload)
     if not incoming:
+        logger.debug(f"[WA] Payload ignorado (no es mensaje de texto): {payload}")
         return Response(content="OK", status_code=200)
 
-    logger.info(f"[WA] Mensaje de {incoming.sender_id}: {incoming.message}")
+    logger.warning(f"[WA] Mensaje de {incoming.sender_id}: {incoming.message}")
 
     tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
@@ -57,7 +58,18 @@ async def whatsapp_webhook(request: Request) -> Response:
     except Exception:
         logger.warning("[WA] Redis no disponible, sin historial")
 
-    result = await agent.run(user_message=incoming.message, history=history)
+    try:
+        result = await agent.run(user_message=incoming.message, history=history)
+    except Exception as e:
+        logger.error(f"[WA] Error en agente: {e}")
+        await adapter.send_reply(OutgoingMessage(
+            channel="whatsapp",
+            recipient_id=incoming.sender_id,
+            message="Disculpa, tuve un problema técnico. ¿Puedes intentar de nuevo?",
+        ))
+        return Response(content="OK", status_code=200)
+
+    logger.warning(f"[WA] Respuesta del agente: {result.response[:100]}")
 
     try:
         session = SessionManager(redis)

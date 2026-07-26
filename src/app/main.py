@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI
 
 from src.app.api.routes import chat, health, webhook
 from src.app.core.config import settings
 from src.app.core.lifespan import lifespan
+
+logging.basicConfig(level=logging.DEBUG if settings.debug else logging.INFO)
 
 app = FastAPI(
     title=settings.app_name,
