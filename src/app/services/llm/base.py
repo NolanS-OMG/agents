@@ -14,6 +14,14 @@ class LLMResponse(BaseModel):
     model: str
     usage: dict[str, Any] = {}
     tool_calls: list[dict[str, Any]] = []
+    generation_id: str = ""
+    finish_reason: str = ""
+    cost_usd: float = 0.0
+    cached_tokens: int = 0
+    reasoning_tokens: int = 0
+    retry_count: int = 0
+    tokens_per_second: float = 0.0
+    ttft_ms: int = 0
 
 
 class LLMProvider(ABC):

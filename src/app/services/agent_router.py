@@ -1,7 +1,8 @@
 import json
+import time
 from typing import Any
 
-from src.app.services.llm.base import LLMMessage, LLMProvider
+from src.app.services.llm.base import LLMMessage, LLMProvider, LLMResponse
 from src.app.tools.base import BaseTool, ToolError, ToolResult
 
 BASE_SYSTEM_PROMPT = """Eres un asistente virtual de atención al cliente. Tu trabajo es ayudar al usuario de forma clara, amable y eficiente.
@@ -31,12 +32,32 @@ class AgentResult:
         messages: list[LLMMessage],
         usage: dict[str, Any],
         needs_human: bool = False,
+        total_llm_calls: int = 1,
+        tool_execution_ms: int = 0,
+        model_actual: str = "",
+        cost_usd: float = 0.0,
+        context_tokens: int = 0,
+        generation_id: str = "",
+        finish_reason: str = "",
+        tokens_per_second: float = 0.0,
+        ttft_ms: int = 0,
+        retry_count: int = 0,
     ) -> None:
         self.response = response
         self.tool_used = tool_used
         self.messages = messages
         self.usage = usage
         self.needs_human = needs_human
+        self.total_llm_calls = total_llm_calls
+        self.tool_execution_ms = tool_execution_ms
+        self.model_actual = model_actual
+        self.cost_usd = cost_usd
+        self.context_tokens = context_tokens
+        self.generation_id = generation_id
+        self.finish_reason = finish_reason
+        self.tokens_per_second = tokens_per_second
+        self.ttft_ms = ttft_ms
+        self.retry_count = retry_count
 
 
 class AgentRouter:
@@ -60,18 +81,29 @@ class AgentRouter:
     ) -> AgentResult:
         messages = self._build_messages(user_message, history)
 
+        total_llm_calls = 0
+        total_tool_ms = 0
+        total_cost = 0.0
+        last_response: LLMResponse | None = None
+
         for _ in range(MAX_TOOL_ITERATIONS):
             response = await self._llm.complete(
                 messages=messages,
                 tools=self._tool_schemas,
             )
+            total_llm_calls += 1
+            total_cost += response.cost_usd
+            last_response = response
 
             if not response.tool_calls:
-                return AgentResult(
+                return self._build_result(
                     response=response.content,
                     tool_used=None,
                     messages=messages,
-                    usage=response.usage,
+                    llm_response=response,
+                    total_llm_calls=total_llm_calls,
+                    tool_execution_ms=total_tool_ms,
+                    total_cost=total_cost,
                 )
 
             tool_call = response.tool_calls[0]
@@ -85,14 +117,19 @@ class AgentRouter:
                 content=json.dumps({"tool_calls": [tool_call]}),
             ))
 
+            t0 = time.time()
             tool_result = await self._execute_tool(tool_name, tool_args)
+            total_tool_ms += int((time.time() - t0) * 1000)
 
             if tool_name == "transferir_a_humano" and isinstance(tool_result, ToolResult):
-                return AgentResult(
+                return self._build_result(
                     response=tool_result.data.get("mensaje", "Te transfiero con un agente humano."),
                     tool_used=tool_name,
                     messages=messages,
-                    usage=response.usage,
+                    llm_response=response,
+                    total_llm_calls=total_llm_calls,
+                    tool_execution_ms=total_tool_ms,
+                    total_cost=total_cost,
                     needs_human=True,
                 )
 
@@ -119,7 +156,39 @@ class AgentRouter:
             response="Lo siento, no pude completar la operación. ¿Puedo ayudarte de otra forma?",
             tool_used=None,
             messages=messages,
-            usage={},
+            usage=last_response.usage if last_response else {},
+            total_llm_calls=total_llm_calls,
+            tool_execution_ms=total_tool_ms,
+            cost_usd=total_cost,
+        )
+
+    def _build_result(
+        self,
+        response: str,
+        tool_used: str | None,
+        messages: list[LLMMessage],
+        llm_response: LLMResponse,
+        total_llm_calls: int,
+        tool_execution_ms: int,
+        total_cost: float,
+        needs_human: bool = False,
+    ) -> AgentResult:
+        return AgentResult(
+            response=response,
+            tool_used=tool_used,
+            messages=messages,
+            usage=llm_response.usage,
+            needs_human=needs_human,
+            total_llm_calls=total_llm_calls,
+            tool_execution_ms=tool_execution_ms,
+            model_actual=llm_response.model,
+            cost_usd=total_cost,
+            context_tokens=llm_response.usage.get("prompt_tokens", 0),
+            generation_id=llm_response.generation_id,
+            finish_reason=llm_response.finish_reason,
+            tokens_per_second=llm_response.tokens_per_second,
+            ttft_ms=llm_response.ttft_ms,
+            retry_count=llm_response.retry_count,
         )
 
     async def _execute_tool(self, name: str, args: dict[str, Any]) -> ToolResult | ToolError:

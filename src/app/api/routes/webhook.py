@@ -16,6 +16,8 @@ from src.app.tools.registry import get_tools_for_tenant
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["webhook"])
 
+MAX_CONTEXT_WINDOW = 128_000
+
 
 @router.get("/webhook/whatsapp")
 async def verify_webhook(
@@ -31,6 +33,7 @@ async def verify_webhook(
 
 @router.post("/webhook/whatsapp")
 async def whatsapp_webhook(request: Request) -> Response:
+    webhook_start = time.time()
     payload = await request.json()
     http_client = request.app.state.http_client
     redis = request.app.state.redis
@@ -102,49 +105,25 @@ async def whatsapp_webhook(request: Request) -> Response:
     latency_ms = int((time.time() - t0) * 1000)
     tokens_in = result.usage.get("prompt_tokens", 0)
     tokens_out = result.usage.get("completion_tokens", 0)
+    context_pct = (result.context_tokens / MAX_CONTEXT_WINDOW * 100) if result.context_tokens else 0
 
     metrics.observe_latency("llm", latency_ms / 1000)
-    metrics.increment("llm_calls")
+    metrics.increment("llm_calls", result.total_llm_calls)
     metrics.increment("tokens_input", tokens_in)
     metrics.increment("tokens_output", tokens_out)
     if result.tool_used:
         metrics.increment(f"tool_calls:{result.tool_used}")
 
-    logger.warning(f"[WA] Respuesta del agente: {result.response[:100]}")
+    logger.warning(f"[WA] Respuesta ({latency_ms}ms, ttft={result.ttft_ms}ms, "
+                   f"tps={result.tokens_per_second}, cost=${result.cost_usd:.5f}): "
+                   f"{result.response[:80]}")
 
     analytics = request.app.state.analytics
+
     analytics.log_message(
         conversation_id=incoming.sender_id,
         role="user",
         content=incoming.message,
-        tenant_id=settings.tenant_id,
-        channel="whatsapp",
-    )
-    analytics.log_message(
-        conversation_id=incoming.sender_id,
-        role="assistant",
-        content=result.response,
-        tool_used=result.tool_used,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        response_latency_ms=latency_ms,
-        model_used=settings.llm_model,
-        tenant_id=settings.tenant_id,
-        channel="whatsapp",
-    )
-
-    user_msgs = [m.content for m in result.messages if m.role == "user" and m.content]
-    bot_msgs = [m.content for m in result.messages if m.role == "assistant" and m.content]
-    tools_used = [result.tool_used] if result.tool_used else []
-    analytics.update_conversation(
-        conversation_id=incoming.sender_id,
-        user_messages=user_msgs,
-        bot_messages=bot_msgs,
-        tools_called=tools_used,
-        total_tokens_in=tokens_in,
-        total_tokens_out=tokens_out,
-        latencies_ms=[latency_ms],
-        escalation=result.needs_human,
         tenant_id=settings.tenant_id,
         channel="whatsapp",
     )
@@ -169,12 +148,69 @@ async def whatsapp_webhook(request: Request) -> Response:
         except Exception:
             logger.warning("[WA] Redis no disponible, no se guardó historial")
 
-    await adapter.send_reply(OutgoingMessage(
+    send_success, send_ms = await adapter.send_reply(OutgoingMessage(
         channel="whatsapp",
         recipient_id=incoming.sender_id,
         message=result.response,
     ))
 
+    if not send_success:
+        metrics.increment("whatsapp_send_failures")
+    metrics.observe_latency("whatsapp_send", send_ms / 1000)
+
+    webhook_total_ms = int((time.time() - webhook_start) * 1000)
+
+    analytics.log_message(
+        conversation_id=incoming.sender_id,
+        role="assistant",
+        content=result.response,
+        tool_used=result.tool_used,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        response_latency_ms=latency_ms,
+        model_used=result.model_actual,
+        tenant_id=settings.tenant_id,
+        channel="whatsapp",
+        cost_usd=result.cost_usd,
+        cached_tokens=result.usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+        if isinstance(result.usage.get("prompt_tokens_details"), dict) else 0,
+        reasoning_tokens=result.usage.get("completion_tokens_details", {}).get("reasoning_tokens", 0)
+        if isinstance(result.usage.get("completion_tokens_details"), dict) else 0,
+        finish_reason=result.finish_reason,
+        generation_id=result.generation_id,
+        retry_count=result.retry_count,
+        tool_execution_ms=result.tool_execution_ms,
+        webhook_total_ms=webhook_total_ms,
+        tokens_per_second=result.tokens_per_second,
+        context_window_used_pct=round(context_pct, 1),
+        ttft_ms=result.ttft_ms,
+    )
+
+    action_type = None
+    if result.tool_used == "ejecutar_accion":
+        action_type = "pedido"
+
+    user_msgs = [m.content for m in result.messages if m.role == "user" and m.content]
+    bot_msgs = [m.content for m in result.messages if m.role == "assistant" and m.content]
+    tools_used = [result.tool_used] if result.tool_used else []
+    analytics.update_conversation(
+        conversation_id=incoming.sender_id,
+        user_messages=user_msgs,
+        bot_messages=bot_msgs,
+        tools_called=tools_used,
+        total_tokens_in=tokens_in,
+        total_tokens_out=tokens_out,
+        latencies_ms=[latency_ms],
+        escalation=result.needs_human,
+        tenant_id=settings.tenant_id,
+        channel="whatsapp",
+        cost_usd=result.cost_usd,
+        model_actual=result.model_actual,
+        tokens_per_second=result.tokens_per_second,
+        action_type=action_type,
+    )
+
     metrics.increment("messages_sent")
-    logger.info(f"[WA] Respuesta enviada a {incoming.sender_id}")
+    metrics.observe_latency("webhook_total", webhook_total_ms / 1000)
+    logger.info(f"[WA] Webhook completo en {webhook_total_ms}ms")
     return Response(content="OK", status_code=200)

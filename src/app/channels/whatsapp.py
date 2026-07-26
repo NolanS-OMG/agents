@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 
 from httpx import AsyncClient
@@ -46,7 +47,8 @@ class WhatsAppAdapter(ChannelAdapter):
             return "52" + phone[3:]
         return phone
 
-    async def send_reply(self, message: OutgoingMessage) -> bool:
+    async def send_reply(self, message: OutgoingMessage) -> tuple[bool, int]:
+        t0 = time.time()
         response = await self._client.post(
             f"{GRAPH_API_URL}/{self._phone_id}/messages",
             json={
@@ -61,8 +63,10 @@ class WhatsAppAdapter(ChannelAdapter):
                 "Content-Type": "application/json",
             },
         )
-        if response.status_code != 200:
+        send_ms = int((time.time() - t0) * 1000)
+        success = response.status_code == 200
+        if not success:
             logger.error(f"[WA] Error enviando mensaje: {response.status_code} {response.text}")
         else:
-            logger.info(f"[WA] Mensaje enviado OK a {message.recipient_id}")
-        return response.status_code == 200
+            logger.info(f"[WA] Mensaje enviado OK a {message.recipient_id} ({send_ms}ms)")
+        return success, send_ms
