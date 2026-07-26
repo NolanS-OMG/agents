@@ -25,3 +25,18 @@ wheels/
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime data
+data/analytics.db
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
