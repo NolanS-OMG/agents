@@ -31,16 +31,31 @@ class WhatsAppAdapter(ChannelAdapter):
             if not messages:
                 return None
             msg = messages[0]
-            if msg.get("type") != "text":
-                return None
+            msg_type = msg.get("type")
             sender = self._normalize_mx_number(msg["from"])
-            return IncomingMessage(
-                channel="whatsapp",
-                sender_id=sender,
-                message=msg["text"]["body"],
-                message_id=msg.get("id", ""),
-                raw=payload,
-            )
+
+            if msg_type == "text":
+                return IncomingMessage(
+                    channel="whatsapp",
+                    sender_id=sender,
+                    message=msg["text"]["body"],
+                    message_id=msg.get("id", ""),
+                    raw=payload,
+                )
+
+            if msg_type == "audio":
+                audio_info = msg.get("audio", {})
+                return IncomingMessage(
+                    channel="whatsapp",
+                    sender_id=sender,
+                    message="",
+                    message_id=msg.get("id", ""),
+                    media_id=audio_info.get("id", ""),
+                    media_type="audio",
+                    raw=payload,
+                )
+
+            return None
         except (KeyError, IndexError):
             return None
 
@@ -49,6 +64,63 @@ class WhatsAppAdapter(ChannelAdapter):
         if phone.startswith("521") and len(phone) == 13:
             return "52" + phone[3:]
         return phone
+
+    async def download_media(self, media_id: str) -> bytes | None:
+        try:
+            resp = await self._client.get(
+                f"{GRAPH_API_URL}/{media_id}",
+                headers={"Authorization": f"Bearer {self._token}"},
+            )
+            if resp.status_code != 200:
+                logger.error(f"[WA] Error obteniendo URL media: {resp.status_code}")
+                return None
+            url = resp.json().get("url")
+            if not url:
+                return None
+            media_resp = await self._client.get(
+                url, headers={"Authorization": f"Bearer {self._token}"}
+            )
+            if media_resp.status_code != 200:
+                logger.error(f"[WA] Error descargando media: {media_resp.status_code}")
+                return None
+            return media_resp.content
+        except Exception as e:
+            logger.error(f"[WA] Error en download_media: {e}")
+            return None
+
+    async def send_audio(self, recipient_id: str, audio_bytes: bytes) -> tuple[bool, int]:
+        t0 = time.time()
+        upload_resp = await self._client.post(
+            f"{GRAPH_API_URL}/{self._phone_id}/media",
+            headers={"Authorization": f"Bearer {self._token}"},
+            files={"file": ("audio.mp3", audio_bytes, "audio/mpeg")},
+            data={"messaging_product": "whatsapp", "type": "audio/mpeg"},
+        )
+        if upload_resp.status_code != 200:
+            send_ms = int((time.time() - t0) * 1000)
+            logger.error(f"[WA] Error subiendo audio: {upload_resp.status_code}")
+            return False, send_ms
+
+        media_id = upload_resp.json().get("id")
+        resp = await self._client.post(
+            f"{GRAPH_API_URL}/{self._phone_id}/messages",
+            json={
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": recipient_id,
+                "type": "audio",
+                "audio": {"id": media_id},
+            },
+            headers={
+                "Authorization": f"Bearer {self._token}",
+                "Content-Type": "application/json",
+            },
+        )
+        send_ms = int((time.time() - t0) * 1000)
+        if resp.status_code == 200:
+            return True, send_ms
+        logger.error(f"[WA] Error enviando audio: {resp.status_code}")
+        return False, send_ms
 
     async def send_reply(self, message: OutgoingMessage) -> tuple[bool, int]:
         t0 = time.time()

@@ -9,13 +9,21 @@ class IncomingMessage(BaseModel):
     sender_id: str
     message: str
     message_id: str = ""
+    media_id: str = ""
+    media_type: str = ""
     raw: dict[str, Any] = {}
+
+    @property
+    def is_audio(self) -> bool:
+        return self.media_type == "audio"
 
 
 class OutgoingMessage(BaseModel):
     channel: str
     recipient_id: str
     message: str
+    audio_bytes: bytes | None = None
+    audio_mime: str = "audio/mpeg"
 
 
 class ChannelAdapter(ABC):
