@@ -1,4 +1,5 @@
 import logging
+import time
 
 from fastapi import APIRouter, Query, Request, Response
 
@@ -45,6 +46,8 @@ async def whatsapp_webhook(request: Request) -> Response:
         return Response(content="OK", status_code=200)
 
     logger.warning(f"[WA] Mensaje de {incoming.sender_id}: {incoming.message}")
+    metrics = request.app.state.metrics
+    metrics.increment("messages_received")
 
     if redis:
         allowed = await check_rate_limit(
@@ -83,16 +86,25 @@ async def whatsapp_webhook(request: Request) -> Response:
         except Exception:
             logger.warning("[WA] Redis no disponible, sin historial")
 
+    t0 = time.time()
     try:
         result = await agent.run(user_message=incoming.message, history=history)
     except Exception as e:
         logger.error(f"[WA] Error en agente: {e}")
+        metrics.increment("errors")
         await adapter.send_reply(OutgoingMessage(
             channel="whatsapp",
             recipient_id=incoming.sender_id,
             message="Disculpa, tuve un problema técnico. ¿Puedes intentar de nuevo?",
         ))
         return Response(content="OK", status_code=200)
+
+    metrics.observe_latency("llm", time.time() - t0)
+    metrics.increment("llm_calls")
+    metrics.increment("tokens_input", result.usage.get("prompt_tokens", 0))
+    metrics.increment("tokens_output", result.usage.get("completion_tokens", 0))
+    if result.tool_used:
+        metrics.increment(f"tool_calls:{result.tool_used}")
 
     logger.warning(f"[WA] Respuesta del agente: {result.response[:100]}")
 
@@ -122,5 +134,6 @@ async def whatsapp_webhook(request: Request) -> Response:
         message=result.response,
     ))
 
+    metrics.increment("messages_sent")
     logger.info(f"[WA] Respuesta enviada a {incoming.sender_id}")
     return Response(content="OK", status_code=200)
