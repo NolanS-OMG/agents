@@ -8,9 +8,14 @@ router = APIRouter(tags=["health"])
 @router.get("/health")
 async def health_check(request: Request) -> dict[str, str]:
     redis = request.app.state.redis
+    redis_status = "disconnected"
     if redis:
-        await redis.ping()
-    return {"status": "ok"}
+        try:
+            await redis.ping()
+            redis_status = "connected"
+        except Exception:
+            redis_status = "error"
+    return {"status": "ok", "redis": redis_status}
 
 
 @router.get("/metrics")
@@ -21,5 +26,8 @@ async def metrics(request: Request) -> dict[str, Any]:
 
 @router.get("/analytics")
 async def analytics(request: Request) -> dict[str, Any]:
-    summary: dict[str, Any] = request.app.state.analytics.get_summary()
+    store = getattr(request.app.state, "analytics", None)
+    if not store:
+        return {"error": "Analytics not available"}
+    summary: dict[str, Any] = store.get_summary()
     return summary

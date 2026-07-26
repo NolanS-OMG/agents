@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Path, Request, Response
 from pydantic import BaseModel, Field
 
 from src.app.core.config import settings
@@ -12,8 +12,8 @@ router = APIRouter(tags=["chat"])
 
 
 class ChatMessage(BaseModel):
-    session_id: str = Field(min_length=1)
-    message: str = Field(min_length=1)
+    session_id: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$")
+    message: str = Field(min_length=1, max_length=4096)
     channel: str = Field(default="api")
 
 
@@ -33,16 +33,20 @@ async def chat(request: Request, body: ChatMessage) -> ChatResponse:
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 
-    session = SessionManager(redis)
-    history = await session.get_history(body.session_id)
+    history = []
+    if redis:
+        session = SessionManager(redis, llm=llm)
+        history = await session.get_history(body.session_id)
 
     result = await agent.run(user_message=body.message, history=history)
 
-    relevant_messages = [
-        m for m in result.messages
-        if m.role in ("user", "assistant") and m.content
-    ]
-    await session.save_history(body.session_id, relevant_messages)
+    if redis:
+        relevant_messages = [
+            m for m in result.messages
+            if m.role in ("user", "assistant") and m.content
+        ]
+        session = SessionManager(redis, llm=llm)
+        await session.save_history(body.session_id, relevant_messages)
 
     return ChatResponse(
         session_id=body.session_id,
@@ -52,7 +56,10 @@ async def chat(request: Request, body: ChatMessage) -> ChatResponse:
 
 
 @router.post("/sessions/{session_id}/release")
-async def release_session(request: Request, session_id: str) -> Response:
+async def release_session(
+    request: Request,
+    session_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$"),
+) -> Response:
     redis = request.app.state.redis
     if redis:
         session = SessionManager(redis)

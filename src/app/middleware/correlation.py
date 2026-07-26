@@ -11,7 +11,9 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         cid = str(uuid.uuid4())[:8]
         token = correlation_id_var.set(cid)
-        response = await call_next(request)
-        response.headers["X-Correlation-ID"] = cid
-        correlation_id_var.reset(token)
-        return response
+        try:
+            response = await call_next(request)
+            response.headers["X-Correlation-ID"] = cid
+            return response
+        finally:
+            correlation_id_var.reset(token)

@@ -96,8 +96,9 @@ class AgentRouter:
             last_response = response
 
             if not response.tool_calls:
+                content = response.content or "Lo siento, no pude generar una respuesta."
                 return self._build_result(
-                    response=response.content,
+                    response=content,
                     tool_used=None,
                     messages=messages,
                     llm_response=response,
@@ -107,9 +108,12 @@ class AgentRouter:
                 )
 
             tool_call = response.tool_calls[0]
-            function_data = tool_call["function"]
-            tool_name = function_data["name"]
-            tool_args = json.loads(function_data.get("arguments", "{}"))
+            function_data = tool_call.get("function", {})
+            tool_name = function_data.get("name", "")
+            try:
+                tool_args = json.loads(function_data.get("arguments", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                tool_args = {}
             call_id = tool_call.get("id", "call_0")
 
             messages.append(LLMMessage(

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+import unicodedata
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 TENANTS_DIR = Path(__file__).parent.parent.parent.parent / "data" / "tenants"
 
@@ -41,10 +45,16 @@ class TenantConfig:
         self._load_all_docs()
 
     def _load_all_docs(self) -> None:
+        if not self._path.exists():
+            logger.warning(f"Tenant path not found: {self._path}")
+            return
         for md_file in self._path.rglob("*.md"):
             if md_file.name in ("log.md",):
                 continue
-            self._docs.append(OKFDocument(md_file))
+            try:
+                self._docs.append(OKFDocument(md_file))
+            except Exception as e:
+                logger.warning(f"Error loading {md_file}: {e}")
 
     @property
     def index(self) -> str:
@@ -134,7 +144,9 @@ class TenantConfig:
         return values
 
     def _slug_from_title(self, title: str) -> str:
-        return title.lower().replace(" ", "_").replace("á", "a").replace("é", "e").replace("ó", "o")
+        normalized = unicodedata.normalize("NFKD", title)
+        ascii_str = normalized.encode("ascii", "ignore").decode()
+        return ascii_str.lower().replace(" ", "_")
 
 
 def load_tenant(tenant_id: str) -> TenantConfig:

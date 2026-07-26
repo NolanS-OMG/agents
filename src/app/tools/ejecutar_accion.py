@@ -26,7 +26,7 @@ class EjecutarAccion(BaseTool):
     async def execute(self, **kwargs: Any) -> ToolResult | ToolError:
         categoria = kwargs.get("categoria")
         accion_solicitada = kwargs.get("accion_solicitada")
-        parametros = kwargs.get("parametros_extra", {})
+        parametros = kwargs.get("parametros_extra") or {}
 
         if not categoria or not accion_solicitada:
             return ToolError(
