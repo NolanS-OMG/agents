@@ -24,7 +24,7 @@ fi
 
 # Install dependencies
 echo ">> Instalando dependencias con uv..."
-uv sync
+uv sync --extra voice
 
 # Start Redis via Docker if not already running
 if docker ps --format '{{.Names}}' | grep -q "prototipo-agente-redis"; then
