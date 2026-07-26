@@ -35,5 +35,10 @@ class Settings(BaseSettings):
     llm_timeout: int = Field(default=30)
     llm_max_retries: int = Field(default=2)
 
+    voice_enabled: bool = Field(default=False)
+    whisper_model: str = Field(default="large-v3")
+    whisper_device: str = Field(default="cuda")
+    tts_voice: str = Field(default="es-MX-DaliaNeural")
+
 
 settings = Settings()

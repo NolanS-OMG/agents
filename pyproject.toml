@@ -20,6 +20,12 @@ dependencies = [
     "uvicorn[standard]>=0.51.0",
 ]
 
+[project.optional-dependencies]
+voice = [
+    "faster-whisper>=1.0.0",
+    "edge-tts>=6.1.0",
+]
+
 [dependency-groups]
 dev = [
     "fakeredis>=2.37.0",

@@ -40,3 +40,6 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# Archives (test audio/reference files)
+archives/
