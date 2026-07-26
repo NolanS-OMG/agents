@@ -43,27 +43,28 @@ AGENTE PADRE (LLM Router)
 - [x] Tool 3: lectura directa de documentos por ruta (el LLM navega el índice)
 - [x] Estilos de comunicación configurables (chat/voz) con few-shot examples
 - [x] CLI para testing en terminal
-- [ ] Compresión/resumen de historial cuando excede N tokens (diferido)
-- [ ] Handover protocol: escalar_a_humano (diferido)
+- [x] Compresión/resumen de historial con LLM cuando excede N mensajes
+- [x] Handover protocol: tool transferir_a_humano + flag needs_human en Redis
 
-### Fase 3: RAG y conocimiento extenso
+### Fase 3: RAG y conocimiento extenso (DIFERIDA)
 - [ ] Integración con vector store (pgvector o similar)
 - [ ] Pipeline de ingesta de documentos
 - [ ] Búsqueda híbrida (keyword + semantic) en Tool 3
 - [ ] Chunking y re-ranking de resultados
 
-### Fase 4: Multi-canal
-- [ ] Webhook para WhatsApp (Meta Cloud API)
-- [ ] Adaptador de canal genérico (normalizar mensajes de cada fuente)
-- [ ] Widget web (WebSocket o polling)
-- [ ] Rate limiting por canal/usuario
+### Fase 4: Multi-canal (COMPLETADA)
+- [x] Webhook para WhatsApp (Meta Cloud API)
+- [x] Adaptador de canal genérico (ChannelAdapter ABC)
+- [x] Rate limiting por sender (sliding window Redis)
+- [ ] Widget web (WebSocket o polling) — diferido
 
-### Fase 5: Observabilidad y mejora continua
-- [ ] Logging estructurado de trazas (prompt, tool seleccionada, parámetros, resultado)
-- [ ] Métricas: Tasa de Error 400, TCR, Handover Rate, Latencia, Tokens por sesión
-- [ ] Dashboard de métricas
-- [ ] Sistema de evaluación (eval set con conversaciones pasadas)
-- [ ] Data flywheel: clasificación de fallos → refinamiento de prompts
+### Fase 5: Observabilidad y mejora continua (COMPLETADA)
+- [x] Logging estructurado JSON con correlation IDs
+- [x] Métricas: messages, LLM calls, tokens, latencia, errors
+- [x] Endpoint GET /metrics
+- [ ] Dashboard de métricas (diferido)
+- [ ] Sistema de evaluación (eval set con conversaciones pasadas) — diferido
+- [ ] Data flywheel: clasificación de fallos → refinamiento de prompts — diferido
 
 ### Fase 6: Producción
 - [ ] Multi-tenancy (cada cliente/empresa con su config, OKF, y tools)
