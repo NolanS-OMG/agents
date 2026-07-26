@@ -28,6 +28,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.redis = None
         logger.warning("Redis no disponible, funcionando sin historial")
 
+    app.state.voice_pipeline = None
+    if settings.voice_enabled:
+        try:
+            from src.app.services.synthesizer import Synthesizer
+            from src.app.services.transcriber import Transcriber
+            from src.app.services.voice_pipeline import VoicePipeline
+
+            transcriber = Transcriber(
+                model_size=settings.whisper_model,
+                device=settings.whisper_device,
+            )
+            synthesizer = Synthesizer(voice=settings.tts_voice)
+            app.state.voice_pipeline = VoicePipeline(
+                transcriber=transcriber,
+                synthesizer=synthesizer,
+            )
+            logger.info(
+                f"Voice pipeline inicializado ({settings.whisper_model} on {settings.whisper_device})"
+            )
+        except Exception as e:
+            logger.warning(f"Voice pipeline no disponible: {e}")
+
     yield
 
     await app.state.http_client.aclose()
