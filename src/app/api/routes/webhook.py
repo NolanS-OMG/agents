@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import time
 
 from fastapi import APIRouter, Query, Request, Response
 
-from src.app.channels.base import OutgoingMessage
+from src.app.channels.base import IncomingMessage, OutgoingMessage
 from src.app.channels.whatsapp import WhatsAppAdapter
 from src.app.core.config import settings
 from src.app.middleware.rate_limit import check_rate_limit
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["webhook"])
 
 MAX_CONTEXT_WINDOW = 128_000
+DEDUP_TTL = 300
 
 
 @router.get("/webhook/whatsapp")
@@ -33,7 +35,6 @@ async def verify_webhook(
 
 @router.post("/webhook/whatsapp")
 async def whatsapp_webhook(request: Request) -> Response:
-    webhook_start = time.time()
     payload = await request.json()
     http_client = request.app.state.http_client
     redis = request.app.state.redis
@@ -48,10 +49,18 @@ async def whatsapp_webhook(request: Request) -> Response:
     if not incoming:
         return Response(content="OK", status_code=200)
 
-    logger.warning(f"[WA] Mensaje de {incoming.sender_id}: {incoming.message}")
+    # Deduplicación: si ya procesamos este message_id, ignorar
+    if redis and incoming.message_id:
+        dedup_key = f"dedup:{incoming.message_id}"
+        already_seen = await redis.set(dedup_key, "1", ex=DEDUP_TTL, nx=True)
+        if not already_seen:
+            logger.info(f"[WA] Mensaje duplicado ignorado: {incoming.message_id}")
+            return Response(content="OK", status_code=200)
+
     metrics = request.app.state.metrics
     metrics.increment("messages_received")
 
+    # Rate limit y needs_human son rápidos — se ejecutan antes de retornar 200
     if redis:
         allowed = await check_rate_limit(
             redis, incoming.sender_id,
@@ -75,6 +84,24 @@ async def whatsapp_webhook(request: Request) -> Response:
                 message="Tu conversación está siendo atendida por un agente humano. Te responderá pronto.",
             ))
             return Response(content="OK", status_code=200)
+
+    # Procesamiento pesado (LLM) en background — retornamos 200 a Meta inmediatamente
+    asyncio.create_task(_process_message(request, incoming, adapter))
+    return Response(content="OK", status_code=200)
+
+
+async def _process_message(
+    request: Request,
+    incoming: IncomingMessage,
+    adapter: WhatsAppAdapter,
+) -> None:
+    webhook_start = time.time()
+    http_client = request.app.state.http_client
+    redis = request.app.state.redis
+    metrics = request.app.state.metrics
+    analytics = request.app.state.analytics
+
+    logger.info(f"[WA] Procesando mensaje de {incoming.sender_id}: {incoming.message[:50]}")
 
     tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
@@ -100,7 +127,7 @@ async def whatsapp_webhook(request: Request) -> Response:
             recipient_id=incoming.sender_id,
             message="Disculpa, tuve un problema técnico. ¿Puedes intentar de nuevo?",
         ))
-        return Response(content="OK", status_code=200)
+        return
 
     latency_ms = int((time.time() - t0) * 1000)
     tokens_in = result.usage.get("prompt_tokens", 0)
@@ -114,11 +141,9 @@ async def whatsapp_webhook(request: Request) -> Response:
     if result.tool_used:
         metrics.increment(f"tool_calls:{result.tool_used}")
 
-    logger.warning(f"[WA] Respuesta ({latency_ms}ms, ttft={result.ttft_ms}ms, "
-                   f"tps={result.tokens_per_second}, cost=${result.cost_usd:.5f}): "
-                   f"{result.response[:80]}")
-
-    analytics = request.app.state.analytics
+    logger.info(f"[WA] Respuesta ({latency_ms}ms, ttft={result.ttft_ms}ms, "
+                f"tps={result.tokens_per_second}, cost=${result.cost_usd:.5f}): "
+                f"{result.response[:80]}")
 
     analytics.log_message(
         conversation_id=incoming.sender_id,
@@ -212,5 +237,4 @@ async def whatsapp_webhook(request: Request) -> Response:
 
     metrics.increment("messages_sent")
     metrics.observe_latency("webhook_total", webhook_total_ms / 1000)
-    logger.info(f"[WA] Webhook completo en {webhook_total_ms}ms")
-    return Response(content="OK", status_code=200)
+    logger.info(f"[WA] Completo en {webhook_total_ms}ms")

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from typing import Any
@@ -9,6 +10,7 @@ from src.app.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessa
 logger = logging.getLogger(__name__)
 
 GRAPH_API_URL = "https://graph.facebook.com/v25.0"
+SEND_MAX_RETRIES = 3
 
 
 class WhatsAppAdapter(ChannelAdapter):
@@ -36,6 +38,7 @@ class WhatsAppAdapter(ChannelAdapter):
                 channel="whatsapp",
                 sender_id=sender,
                 message=msg["text"]["body"],
+                message_id=msg.get("id", ""),
                 raw=payload,
             )
         except (KeyError, IndexError):
@@ -49,24 +52,34 @@ class WhatsAppAdapter(ChannelAdapter):
 
     async def send_reply(self, message: OutgoingMessage) -> tuple[bool, int]:
         t0 = time.time()
-        response = await self._client.post(
-            f"{GRAPH_API_URL}/{self._phone_id}/messages",
-            json={
-                "messaging_product": "whatsapp",
-                "recipient_type": "individual",
-                "to": message.recipient_id,
-                "type": "text",
-                "text": {"preview_url": False, "body": message.message},
-            },
-            headers={
-                "Authorization": f"Bearer {self._token}",
-                "Content-Type": "application/json",
-            },
-        )
+
+        for attempt in range(SEND_MAX_RETRIES):
+            response = await self._client.post(
+                f"{GRAPH_API_URL}/{self._phone_id}/messages",
+                json={
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": message.recipient_id,
+                    "type": "text",
+                    "text": {"preview_url": False, "body": message.message},
+                },
+                headers={
+                    "Authorization": f"Bearer {self._token}",
+                    "Content-Type": "application/json",
+                },
+            )
+
+            if response.status_code == 200:
+                send_ms = int((time.time() - t0) * 1000)
+                logger.info(f"[WA] Mensaje enviado OK a {message.recipient_id} ({send_ms}ms)")
+                return True, send_ms
+
+            if response.status_code >= 500 and attempt < SEND_MAX_RETRIES - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+
+            break
+
         send_ms = int((time.time() - t0) * 1000)
-        success = response.status_code == 200
-        if not success:
-            logger.error(f"[WA] Error enviando mensaje: {response.status_code} {response.text}")
-        else:
-            logger.info(f"[WA] Mensaje enviado OK a {message.recipient_id} ({send_ms}ms)")
-        return success, send_ms
+        logger.error(f"[WA] Error enviando mensaje: {response.status_code} {response.text}")
+        return False, send_ms

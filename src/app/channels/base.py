@@ -8,6 +8,7 @@ class IncomingMessage(BaseModel):
     channel: str
     sender_id: str
     message: str
+    message_id: str = ""
     raw: dict[str, Any] = {}
 
 
