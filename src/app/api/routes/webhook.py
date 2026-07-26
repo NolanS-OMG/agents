@@ -99,14 +99,55 @@ async def whatsapp_webhook(request: Request) -> Response:
         ))
         return Response(content="OK", status_code=200)
 
-    metrics.observe_latency("llm", time.time() - t0)
+    latency_ms = int((time.time() - t0) * 1000)
+    tokens_in = result.usage.get("prompt_tokens", 0)
+    tokens_out = result.usage.get("completion_tokens", 0)
+
+    metrics.observe_latency("llm", latency_ms / 1000)
     metrics.increment("llm_calls")
-    metrics.increment("tokens_input", result.usage.get("prompt_tokens", 0))
-    metrics.increment("tokens_output", result.usage.get("completion_tokens", 0))
+    metrics.increment("tokens_input", tokens_in)
+    metrics.increment("tokens_output", tokens_out)
     if result.tool_used:
         metrics.increment(f"tool_calls:{result.tool_used}")
 
     logger.warning(f"[WA] Respuesta del agente: {result.response[:100]}")
+
+    analytics = request.app.state.analytics
+    analytics.log_message(
+        conversation_id=incoming.sender_id,
+        role="user",
+        content=incoming.message,
+        tenant_id=settings.tenant_id,
+        channel="whatsapp",
+    )
+    analytics.log_message(
+        conversation_id=incoming.sender_id,
+        role="assistant",
+        content=result.response,
+        tool_used=result.tool_used,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        response_latency_ms=latency_ms,
+        model_used=settings.llm_model,
+        tenant_id=settings.tenant_id,
+        channel="whatsapp",
+    )
+
+    user_msgs = [m.content for m in result.messages if m.role == "user" and m.content]
+    bot_msgs = [m.content for m in result.messages if m.role == "assistant" and m.content]
+    tools_used = [result.tool_used] if result.tool_used else []
+    analytics.update_conversation(
+        conversation_id=incoming.sender_id,
+        user_messages=user_msgs,
+        bot_messages=bot_msgs,
+        tools_called=tools_used,
+        total_tokens_in=tokens_in,
+        total_tokens_out=tokens_out,
+        latencies_ms=[latency_ms],
+        escalation=result.needs_human,
+        tenant_id=settings.tenant_id,
+        channel="whatsapp",
+    )
 
     if result.needs_human and redis:
         session = SessionManager(redis, llm=llm)

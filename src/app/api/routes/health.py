@@ -17,3 +17,9 @@ async def health_check(request: Request) -> dict[str, str]:
 async def metrics(request: Request) -> dict[str, Any]:
     snapshot: dict[str, Any] = request.app.state.metrics.snapshot()
     return snapshot
+
+
+@router.get("/analytics")
+async def analytics(request: Request) -> dict[str, Any]:
+    summary: dict[str, Any] = request.app.state.analytics.get_summary()
+    return summary
