@@ -101,7 +101,41 @@ async def _process_message(
     metrics = request.app.state.metrics
     analytics = request.app.state.analytics
 
-    logger.info(f"[WA] Procesando mensaje de {incoming.sender_id}: {incoming.message[:50]}")
+    # Si es audio, transcribir primero
+    user_text = incoming.message
+    if incoming.is_audio:
+        voice_pipeline = getattr(request.app.state, "voice_pipeline", None)
+        if not voice_pipeline:
+            logger.warning("[WA] Audio recibido pero voice pipeline no disponible")
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="No puedo procesar audio en este momento. ¿Puedes escribir tu mensaje?",
+            ))
+            return
+
+        audio_bytes = await adapter.download_media(incoming.media_id)
+        if not audio_bytes:
+            logger.error(f"[WA] No se pudo descargar media {incoming.media_id}")
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="No pude descargar tu audio. ¿Puedes intentar de nuevo?",
+            ))
+            return
+
+        user_text = voice_pipeline.transcribe(audio_bytes)
+        if not user_text.strip():
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="No pude entender el audio. ¿Puedes repetirlo o escribir tu mensaje?",
+            ))
+            return
+
+        logger.info(f"[WA] Audio transcrito: {user_text[:80]}")
+
+    logger.info(f"[WA] Procesando mensaje de {incoming.sender_id}: {user_text[:50]}")
 
     tenant = load_tenant(settings.tenant_id)
     llm = get_llm_provider(http_client)
@@ -122,7 +156,7 @@ async def _process_message(
 
     t0 = time.time()
     try:
-        result = await agent.run(user_message=incoming.message, history=history)
+        result = await agent.run(user_message=user_text, history=history)
     except Exception as e:
         logger.error(f"[WA] Error en agente: {e}")
         metrics.increment("errors")
@@ -152,7 +186,7 @@ async def _process_message(
     analytics.log_message(
         conversation_id=incoming.sender_id,
         role="user",
-        content=incoming.message,
+        content=user_text,
         tenant_id=settings.tenant_id,
         channel="whatsapp",
     )
