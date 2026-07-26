@@ -61,7 +61,7 @@ async def whatsapp_webhook(request: Request) -> Response:
             ))
             return Response(content="OK", status_code=200)
 
-        session = SessionManager(redis)
+        session = SessionManager(redis, llm=None)
         if await session.is_needs_human(incoming.sender_id):
             await adapter.send_reply(OutgoingMessage(
                 channel="whatsapp",
@@ -78,7 +78,7 @@ async def whatsapp_webhook(request: Request) -> Response:
     history = []
     if redis:
         try:
-            session = SessionManager(redis)
+            session = SessionManager(redis, llm=llm)
             history = await session.get_history(incoming.sender_id)
         except Exception:
             logger.warning("[WA] Redis no disponible, sin historial")
@@ -97,17 +97,22 @@ async def whatsapp_webhook(request: Request) -> Response:
     logger.warning(f"[WA] Respuesta del agente: {result.response[:100]}")
 
     if result.needs_human and redis:
-        session = SessionManager(redis)
+        session = SessionManager(redis, llm=llm)
         await session.mark_needs_human(incoming.sender_id)
 
     if redis:
         try:
-            session = SessionManager(redis)
+            session = SessionManager(redis, llm=llm)
             relevant_messages = [
                 m for m in result.messages
                 if m.role in ("user", "assistant") and m.content
             ]
-            await session.save_history(incoming.sender_id, relevant_messages)
+            await session.save_history(
+                incoming.sender_id,
+                relevant_messages,
+                compression_threshold=settings.history_compression_threshold,
+                keep_recent=settings.history_keep_recent,
+            )
         except Exception:
             logger.warning("[WA] Redis no disponible, no se guardó historial")
 
