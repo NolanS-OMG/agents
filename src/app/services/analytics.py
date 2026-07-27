@@ -112,6 +112,11 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
         ("tokens_per_second", "REAL DEFAULT 0.0"),
         ("context_window_used_pct", "REAL DEFAULT 0.0"),
         ("ttft_ms", "INTEGER DEFAULT 0"),
+        ("input_type", "TEXT DEFAULT 'text'"),
+        ("audio_duration_ms", "INTEGER DEFAULT 0"),
+        ("transcription_ms", "INTEGER DEFAULT 0"),
+        ("tts_ms", "INTEGER DEFAULT 0"),
+        ("transcription_text", "TEXT"),
     ]
     conv_cols = [
         ("total_cost_usd", "REAL DEFAULT 0.0"),
@@ -123,6 +128,9 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
         ("model_actual", "TEXT"),
         ("avg_tokens_per_second", "REAL DEFAULT 0.0"),
         ("max_latency_ms", "INTEGER DEFAULT 0"),
+        ("voice_turns", "INTEGER DEFAULT 0"),
+        ("total_audio_duration_ms", "INTEGER DEFAULT 0"),
+        ("call_duration_s", "INTEGER DEFAULT 0"),
     ]
     for col, dtype in msg_cols:
         with contextlib.suppress(sqlite3.OperationalError):
@@ -162,6 +170,11 @@ class AnalyticsStore:
         tokens_per_second: float = 0.0,
         context_window_used_pct: float = 0.0,
         ttft_ms: int = 0,
+        input_type: str = "text",
+        audio_duration_ms: int = 0,
+        transcription_ms: int = 0,
+        tts_ms: int = 0,
+        transcription_text: str | None = None,
     ) -> None:
         now = time.time()
         self._conn.execute(
@@ -170,8 +183,9 @@ class AnalyticsStore:
                 tool_used, tokens_in, tokens_out, response_latency_ms, model_used,
                 tenant_id, channel, cost_usd, cached_tokens, reasoning_tokens,
                 finish_reason, generation_id, retry_count, tool_execution_ms,
-                webhook_total_ms, tokens_per_second, context_window_used_pct, ttft_ms)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                webhook_total_ms, tokens_per_second, context_window_used_pct, ttft_ms,
+                input_type, audio_duration_ms, transcription_ms, tts_ms, transcription_text)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 conversation_id, role, content, now,
                 len(content), len(content.split()),
@@ -180,6 +194,7 @@ class AnalyticsStore:
                 reasoning_tokens, finish_reason, generation_id, retry_count,
                 tool_execution_ms, webhook_total_ms, tokens_per_second,
                 context_window_used_pct, ttft_ms,
+                input_type, audio_duration_ms, transcription_ms, tts_ms, transcription_text,
             ),
         )
         self._conn.commit()

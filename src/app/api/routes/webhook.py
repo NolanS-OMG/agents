@@ -103,6 +103,10 @@ async def _process_message(
 
     # Si es audio, transcribir primero
     user_text = incoming.message
+    input_type = "text"
+    transcription_ms = 0
+    audio_duration_ms = 0
+
     if incoming.is_audio:
         voice_pipeline = getattr(request.app.state, "voice_pipeline", None)
         if not voice_pipeline:
@@ -124,7 +128,13 @@ async def _process_message(
             ))
             return
 
+        input_type = "audio"
+        audio_duration_ms = int(len(audio_bytes) / 16 * 8)  # rough estimate for OGG
+
+        t_stt = time.time()
         user_text = voice_pipeline.transcribe(audio_bytes)
+        transcription_ms = int((time.time() - t_stt) * 1000)
+
         if not user_text.strip():
             await adapter.send_reply(OutgoingMessage(
                 channel="whatsapp",
@@ -133,7 +143,7 @@ async def _process_message(
             ))
             return
 
-        logger.info(f"[WA] Audio transcrito: {user_text[:80]}")
+        logger.info(f"[WA] Audio transcrito ({transcription_ms}ms): {user_text[:80]}")
 
     logger.info(f"[WA] Procesando mensaje de {incoming.sender_id}: {user_text[:50]}")
 
@@ -189,6 +199,10 @@ async def _process_message(
         content=user_text,
         tenant_id=settings.tenant_id,
         channel="whatsapp",
+        input_type=input_type,
+        audio_duration_ms=audio_duration_ms,
+        transcription_ms=transcription_ms,
+        transcription_text=user_text if input_type == "audio" else None,
     )
 
     if result.needs_human and redis:
