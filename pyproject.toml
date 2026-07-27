@@ -24,6 +24,7 @@ dependencies = [
 voice = [
     "faster-whisper>=1.0.0",
     "edge-tts>=6.1.0",
+    "pydub>=0.25.1",
 ]
 
 [dependency-groups]
