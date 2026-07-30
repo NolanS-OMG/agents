@@ -27,7 +27,7 @@ async def load_tenant_from_db(tenant_id: str, redis: Redis | None = None) -> Ten
         logger.warning(f"Failed to load tenant {tenant_id} from DB: {e}")
         return None
 
-    if not docs:
+    if not docs and not prompts:
         return None
 
     config = TenantConfig(tenant_id=tenant_id, docs=docs, prompts=prompts)

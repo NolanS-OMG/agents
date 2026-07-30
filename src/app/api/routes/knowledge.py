@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/v1/knowledge", tags=["knowledge"])
 
 
 class CreateDocRequest(BaseModel):
-    slug: str = Field(min_length=1, max_length=200)
+    slug: str = Field(min_length=1, max_length=200, pattern=r"^[a-z0-9][a-z0-9_\-/]*[a-z0-9]$")
     doc_type: str = Field(min_length=1, max_length=50)
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
@@ -84,6 +84,8 @@ async def list_documents(
 
 @router.get("/{slug:path}", response_model=DocResponse)
 async def get_document(tenant: CurrentTenant, slug: str) -> Any:
+    if not slug:
+        raise HTTPException(400, "Slug is required")
     doc = await KnowledgeDocument.get_or_none(tenant_id=tenant.tenant_id, slug=slug)
     if not doc:
         raise HTTPException(404, f"Document '{slug}' not found")

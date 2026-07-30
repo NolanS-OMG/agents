@@ -37,7 +37,7 @@ def extract_table_column(body: str, section: str, col: int) -> list[str]:
 
 def slug_from_path(tenant_path: Path, file_path: Path) -> str:
     relative = file_path.relative_to(tenant_path)
-    return str(relative.with_suffix(""))
+    return str(relative.with_suffix("")).replace("\\", "/")
 
 
 def doc_type_from_okf(doc: OKFDocument) -> str:
