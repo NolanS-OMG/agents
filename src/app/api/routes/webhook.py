@@ -2,16 +2,18 @@ import asyncio
 import logging
 import time
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 
 from src.app.channels.base import IncomingMessage, OutgoingMessage
 from src.app.channels.whatsapp import WhatsAppAdapter
 from src.app.core.config import settings
+from src.app.db.models import TenantCredentials
 from src.app.middleware.rate_limit import check_rate_limit
 from src.app.services.agent_router import AgentRouter
+from src.app.services.credential_vault import CredentialVault
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
-from src.app.services.tenant import load_tenant
+from src.app.services.tenant_loader import load_tenant_async
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,32 @@ router = APIRouter(tags=["webhook"])
 
 MAX_CONTEXT_WINDOW = 128_000
 DEDUP_TTL = 300
+
+
+async def _get_tenant_whatsapp_creds(tenant_id: str) -> tuple[str, str, str]:
+    creds = await TenantCredentials.get_or_none(tenant_id=tenant_id)
+    if not creds or not creds.whatsapp_access_token_enc:
+        raise HTTPException(404, "Tenant WhatsApp not configured")
+    vault = CredentialVault()
+    token = vault.decrypt(creds.whatsapp_access_token_enc)
+    return token, creds.whatsapp_phone_number_id, creds.whatsapp_verify_token
+
+
+@router.get("/webhook/whatsapp/{tenant_id}")
+async def verify_webhook_tenant(
+    tenant_id: str,
+    response: Response,
+    hub_mode: str = Query(alias="hub.mode", default=""),
+    hub_challenge: str = Query(alias="hub.challenge", default=""),
+    hub_verify_token: str = Query(alias="hub.verify_token", default=""),
+) -> Response:
+    try:
+        _, _, verify_token = await _get_tenant_whatsapp_creds(tenant_id)
+    except Exception:
+        return Response(content="Forbidden", status_code=403)
+    if hub_mode == "subscribe" and hub_verify_token == verify_token:
+        return Response(content=hub_challenge, media_type="text/plain")
+    return Response(content="Forbidden", status_code=403)
 
 
 @router.get("/webhook/whatsapp")
@@ -31,6 +59,64 @@ async def verify_webhook(
     if hub_mode == "subscribe" and hub_verify_token == settings.whatsapp_verify_token:
         return Response(content=hub_challenge, media_type="text/plain")
     return Response(content="Forbidden", status_code=403)
+
+
+@router.post("/webhook/whatsapp/{tenant_id}")
+async def whatsapp_webhook_tenant(request: Request, tenant_id: str) -> Response:
+    payload = await request.json()
+    http_client = request.app.state.http_client
+    redis = request.app.state.redis
+
+    try:
+        access_token, phone_number_id, _ = await _get_tenant_whatsapp_creds(tenant_id)
+    except Exception:
+        return Response(content="OK", status_code=200)
+
+    adapter = WhatsAppAdapter(
+        access_token=access_token,
+        phone_number_id=phone_number_id,
+        http_client=http_client,
+    )
+
+    incoming = adapter.parse_incoming(payload)
+    if not incoming:
+        return Response(content="OK", status_code=200)
+
+    if redis and incoming.message_id:
+        dedup_key = f"dedup:{tenant_id}:{incoming.message_id}"
+        already_seen = await redis.set(dedup_key, "1", ex=DEDUP_TTL, nx=True)
+        if not already_seen:
+            return Response(content="OK", status_code=200)
+
+    metrics = request.app.state.metrics
+    metrics.increment("messages_received")
+
+    if redis:
+        allowed = await check_rate_limit(
+            redis, incoming.sender_id,
+            max_msgs=settings.rate_limit_messages,
+            window_secs=settings.rate_limit_window,
+            tenant_id=tenant_id,
+        )
+        if not allowed:
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="Estás enviando muchos mensajes, espera un momento por favor.",
+            ))
+            return Response(content="OK", status_code=200)
+
+        session = SessionManager(redis, llm=None)
+        if await session.is_needs_human(f"{tenant_id}:{incoming.sender_id}"):
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="Tu conversación está siendo atendida por un agente humano.",
+            ))
+            return Response(content="OK", status_code=200)
+
+    asyncio.create_task(_process_message_tenant(request, incoming, adapter, tenant_id))
+    return Response(content="OK", status_code=200)
 
 
 @router.post("/webhook/whatsapp")
@@ -147,7 +233,7 @@ async def _process_message(
 
     logger.info(f"[WA] Procesando mensaje de {incoming.sender_id}: {user_text[:50]}")
 
-    tenant = load_tenant(settings.tenant_id)
+    tenant = await load_tenant_async(settings.tenant_id, redis)
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
@@ -290,3 +376,85 @@ async def _process_message(
     metrics.increment("messages_sent")
     metrics.observe_latency("webhook_total", webhook_total_ms / 1000)
     logger.info(f"[WA] Completo en {webhook_total_ms}ms")
+
+
+async def _process_message_tenant(
+    request: Request,
+    incoming: IncomingMessage,
+    adapter: WhatsAppAdapter,
+    tenant_id: str,
+) -> None:
+    http_client = request.app.state.http_client
+    redis = request.app.state.redis
+
+    user_text = incoming.message
+
+    if incoming.is_audio:
+        voice_pipeline = getattr(request.app.state, "voice_pipeline", None)
+        if not voice_pipeline:
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="No puedo procesar audio en este momento.",
+            ))
+            return
+
+        audio_bytes = await adapter.download_media(incoming.media_id)
+        if not audio_bytes:
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="No pude descargar tu audio.",
+            ))
+            return
+
+        user_text = voice_pipeline.transcribe(audio_bytes)
+        if not user_text.strip():
+            await adapter.send_reply(OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="No pude entender el audio.",
+            ))
+            return
+
+    tenant = await load_tenant_async(tenant_id, redis)
+    llm = get_llm_provider(http_client)
+    tools = get_tools_for_tenant(tenant)
+    agent = AgentRouter(
+        llm=llm, tools=tools,
+        tenant_prompt=tenant.get_prompt("chat"),
+        sender_id=incoming.sender_id,
+    )
+
+    session_key = f"{tenant_id}:{incoming.sender_id}"
+    history = []
+    if redis:
+        session = SessionManager(redis, llm=llm)
+        history = await session.get_history(session_key)
+
+    try:
+        result = await agent.run(user_message=user_text, history=history)
+    except Exception as e:
+        logger.error(f"[WA:{tenant_id}] Error: {e}")
+        await adapter.send_reply(OutgoingMessage(
+            channel="whatsapp",
+            recipient_id=incoming.sender_id,
+            message="Disculpa, tuve un problema técnico.",
+        ))
+        return
+
+    if redis:
+        session = SessionManager(redis, llm=llm)
+        relevant = [m for m in result.messages if m.role in ("user", "assistant") and m.content]
+        await session.save_history(session_key, relevant)
+
+    if result.needs_human and redis:
+        session = SessionManager(redis, llm=llm)
+        await session.mark_needs_human(session_key)
+
+    await adapter.send_reply(OutgoingMessage(
+        channel="whatsapp",
+        recipient_id=incoming.sender_id,
+        message=result.response,
+    ))
+    logger.info(f"[WA:{tenant_id}] Respuesta enviada a {incoming.sender_id}")

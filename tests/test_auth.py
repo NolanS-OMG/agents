@@ -115,9 +115,9 @@ async def test_inactive_key_returns_401() -> None:
 async def test_webhook_excluded_from_auth() -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.post(
+        resp = await client.get(
             "/webhook/whatsapp/some_tenant",
-            json={"entry": []},
+            params={"hub.mode": "subscribe", "hub.challenge": "test", "hub.verify_token": "x"},
         )
-    # Should not be 401 — webhook is excluded from auth
+    # Should not be 401 — webhook is excluded from auth (may be 403 for bad token)
     assert resp.status_code != 401
