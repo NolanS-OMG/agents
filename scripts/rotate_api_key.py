@@ -23,7 +23,6 @@ async def rotate(tenant_id: str) -> None:
         db_url=settings.database_url,
         modules={"models": ["src.app.db.models"]},
     )
-    await Tortoise.generate_schemas()
 
     tenant = await Tenant.get_or_none(id=tenant_id)
     if not tenant:

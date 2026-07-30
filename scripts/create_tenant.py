@@ -35,7 +35,6 @@ async def create(args) -> None:
         db_url=settings.database_url,
         modules={"models": ["src.app.db.models"]},
     )
-    await Tortoise.generate_schemas()
 
     tenant, created = await Tenant.get_or_create(
         id=args.id, defaults={"name": args.name}
@@ -58,6 +57,10 @@ async def create(args) -> None:
             tenant_id=args.id, defaults=creds_data
         )
         print("  Credentials encrypted and saved")
+
+    existing_keys = await ApiKey.filter(tenant_id=args.id, active=True).count()
+    if existing_keys:
+        print(f"  Warning: tenant already has {existing_keys} active key(s)")
 
     raw_key, key_hash = generate_api_key(args.id)
     await ApiKey.create(
