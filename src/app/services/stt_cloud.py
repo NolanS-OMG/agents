@@ -16,6 +16,8 @@ class GroqSTT:
     async def transcribe(
         self, audio_bytes: bytes, filename: str = "audio.ogg", language: str = "es"
     ) -> str:
+        from httpx import HTTPStatusError
+
         response = await self._client.post(
             GROQ_STT_URL,
             headers={"Authorization": f"Bearer {self._api_key}"},
@@ -23,5 +25,9 @@ class GroqSTT:
             data={"model": GROQ_MODEL, "language": language},
             timeout=30.0,
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            logger.error(f"Groq STT error {response.status_code}: {response.text[:200]}")
+            raise RuntimeError(f"STT transcription failed: {response.status_code}") from e
         return response.json()["text"]

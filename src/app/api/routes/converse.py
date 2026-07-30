@@ -1,9 +1,13 @@
 import base64
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from httpx import AsyncClient
 
 from src.app.api.deps import CurrentTenant
 from src.app.core.config import settings
@@ -82,15 +86,14 @@ async def converse(
 
     session_key = f"{tenant.tenant_id}:{conversant_id}"
     history = []
-    if redis:
-        session = SessionManager(redis, llm=llm)
+    session = SessionManager(redis, llm=llm) if redis else None
+    if session:
         history = await session.get_history(session_key)
 
     result = await agent.run(user_message=text, history=history)
 
-    if redis:
+    if session:
         relevant = [m for m in result.messages if m.role in ("user", "assistant") and m.content]
-        session = SessionManager(redis, llm=llm)
         await session.save_history(session_key, relevant)
 
     audio_base64: str | None = None
@@ -111,7 +114,7 @@ async def converse(
 
 
 async def _transcribe(
-    audio_bytes: bytes, filename: str, http_client, request: Request
+    audio_bytes: bytes, filename: str, http_client: "AsyncClient", request: Request
 ) -> str:
     if settings.groq_api_key:
         from src.app.services.stt_cloud import GroqSTT
