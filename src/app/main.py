@@ -4,6 +4,7 @@ from src.app.api.routes import chat, health, voice, webhook
 from src.app.core.config import settings
 from src.app.core.lifespan import lifespan
 from src.app.core.logging_config import setup_logging
+from src.app.middleware.auth import AuthMiddleware
 from src.app.middleware.correlation import CorrelationMiddleware
 
 setup_logging(debug=settings.debug)
@@ -15,6 +16,7 @@ app = FastAPI(
     redoc_url=None,
 )
 
+app.add_middleware(AuthMiddleware)
 app.add_middleware(CorrelationMiddleware)
 
 app.include_router(health.router)
