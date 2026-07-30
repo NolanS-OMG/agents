@@ -63,6 +63,9 @@ async def get_usage(
         elif ev.event_type == "whatsapp_msg":
             totals.whatsapp_messages += 1
 
+    totals.total_cost_usd = round(totals.total_cost_usd, 6)
+    totals.stt_seconds = round(totals.stt_seconds, 2)
+
     return UsageResponse(
         tenant_id=tenant.tenant_id,
         from_date=str(from_date),

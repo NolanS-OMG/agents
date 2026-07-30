@@ -12,6 +12,7 @@ async def track_llm_call(
     output_tokens: int,
     latency_ms: int,
     cost_usd: float,
+    provider: str = "openrouter",
     conversation_id: str | None = None,
     status: str = "success",
 ) -> None:
@@ -20,7 +21,7 @@ async def track_llm_call(
             tenant_id=tenant_id,
             conversation_id=conversation_id,
             event_type="llm_call",
-            provider="openrouter",
+            provider=provider,
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,

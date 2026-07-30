@@ -2,7 +2,8 @@ import asyncio
 import base64
 import logging
 import time
-from typing import TYPE_CHECKING
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -20,6 +21,14 @@ from src.app.services.tenant_loader import load_tenant_async
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)
+
+_background_tasks: set[asyncio.Task[Any]] = set()
+
+
+def _bg(coro: Coroutine[Any, Any, Any]) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 router = APIRouter(prefix="/api/v1", tags=["converse"])
 
@@ -71,9 +80,9 @@ async def converse(
         t_stt = time.time()
         text = await _transcribe(audio_bytes, audio.filename or "audio.ogg", http_client, request)
         stt_ms = int((time.time() - t_stt) * 1000)
-        asyncio.create_task(track_stt(
+        _bg(track_stt(
             tenant_id=tenant.tenant_id,
-            audio_duration_s=len(audio_bytes) / 16000,
+            audio_duration_s=stt_ms / 1000,
             latency_ms=stt_ms,
         ))
         if not text.strip():
@@ -103,7 +112,7 @@ async def converse(
     result = await agent.run(user_message=text, history=history)
     llm_latency_ms = int((time.time() - t_llm) * 1000)
 
-    asyncio.create_task(track_llm_call(
+    _bg(track_llm_call(
         tenant_id=tenant.tenant_id,
         model=result.model_actual,
         input_tokens=result.usage.get("prompt_tokens", 0),
@@ -122,7 +131,7 @@ async def converse(
         audio_base64 = await _synthesize(result.response, request)
         tts_ms = int((time.time() - t_tts) * 1000)
         if audio_base64:
-            asyncio.create_task(track_tts(
+            _bg(track_tts(
                 tenant_id=tenant.tenant_id,
                 characters=len(result.response),
                 latency_ms=tts_ms,
