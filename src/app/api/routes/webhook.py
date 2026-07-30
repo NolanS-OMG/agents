@@ -69,7 +69,11 @@ async def whatsapp_webhook_tenant(request: Request, tenant_id: str) -> Response:
 
     try:
         access_token, phone_number_id, _ = await _get_tenant_whatsapp_creds(tenant_id)
-    except Exception:
+    except HTTPException:
+        logger.warning(f"[WA:{tenant_id}] WhatsApp not configured, ignoring")
+        return Response(content="OK", status_code=200)
+    except Exception as e:
+        logger.error(f"[WA:{tenant_id}] Error loading credentials: {e}")
         return Response(content="OK", status_code=200)
 
     adapter = WhatsAppAdapter(
@@ -447,10 +451,8 @@ async def _process_message_tenant(
         session = SessionManager(redis, llm=llm)
         relevant = [m for m in result.messages if m.role in ("user", "assistant") and m.content]
         await session.save_history(session_key, relevant)
-
-    if result.needs_human and redis:
-        session = SessionManager(redis, llm=llm)
-        await session.mark_needs_human(session_key)
+        if result.needs_human:
+            await session.mark_needs_human(session_key)
 
     await adapter.send_reply(OutgoingMessage(
         channel="whatsapp",
