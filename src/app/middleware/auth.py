@@ -49,16 +49,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.state.tenant_name = record.tenant.name
         request.state.api_key_scopes = record.scopes
 
-        asyncio.create_task(self._update_last_used(record))
+        task = asyncio.create_task(self._update_last_used(record))
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
 
         return await call_next(request)
 
     @staticmethod
     async def _update_last_used(record: ApiKey) -> None:
-        try:
-            from datetime import UTC, datetime
+        from datetime import UTC, datetime
 
-            record.last_used_at = datetime.now(UTC)
-            await record.save(update_fields=["last_used_at"])
-        except Exception:
-            pass
+        record.last_used_at = datetime.now(UTC)
+        await record.save(update_fields=["last_used_at"])
