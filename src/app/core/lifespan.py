@@ -5,8 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from httpx import AsyncClient
 from redis.asyncio import Redis
+from tortoise import Tortoise
 
 from src.app.core.config import settings
+from src.app.db import TORTOISE_ORM
 from src.app.services.analytics import AnalyticsStore
 from src.app.services.metrics import MetricsCollector
 
@@ -27,6 +29,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     except Exception:
         app.state.redis = None
         logger.warning("Redis no disponible, funcionando sin historial")
+
+    try:
+        await Tortoise.init(config=TORTOISE_ORM)
+        await Tortoise.generate_schemas()
+        logger.info("PostgreSQL conectado")
+    except Exception as e:
+        logger.warning(f"PostgreSQL no disponible: {e}")
 
     app.state.voice_pipeline = None
     if settings.voice_enabled:
@@ -52,6 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     yield
 
+    await Tortoise.close_connections()
     await app.state.http_client.aclose()
     if app.state.redis:
         await app.state.redis.aclose()

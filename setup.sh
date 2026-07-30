@@ -34,12 +34,21 @@ else
     docker compose up redis -d --wait
 fi
 
+# Start PostgreSQL via Docker if not already running
+if docker ps --format '{{.Names}}' | grep -q "prototipo-agente-postgres"; then
+    echo ">> PostgreSQL ya está corriendo en Docker."
+else
+    echo ">> Levantando PostgreSQL en Docker..."
+    docker compose up postgres -d --wait
+fi
+
 # Start FastAPI with uvicorn
 echo ""
 echo "=== Listo ==="
 echo "  API:     http://localhost:8000"
 echo "  Docs:    http://localhost:8000/docs"
 echo "  Redis:   localhost:6379 (Docker)"
+echo "  PG:      localhost:5432 (Docker)"
 echo ""
 echo "  ngrok:   Corre 'ngrok http 8000' en otra terminal para WhatsApp."
 echo ""
