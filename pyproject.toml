@@ -18,6 +18,8 @@ dependencies = [
     "pydantic-settings>=2.14.2",
     "redis>=8.0.1",
     "uvicorn[standard]>=0.51.0",
+    "tortoise-orm[asyncpg]>=0.23.0",
+    "cryptography>=44.0.0",
 ]
 
 [project.optional-dependencies]
