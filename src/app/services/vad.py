@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class SileroVAD:
     """Streaming Voice Activity Detection using Silero VAD v6 (from faster-whisper)."""
 
-    def __init__(self, threshold: float = 0.5, sample_rate: int = 16000) -> None:
+    def __init__(self, threshold: float = 0.5, sample_rate: int = 8000) -> None:
         self.threshold = threshold
         self.sample_rate = sample_rate
         self._num_samples = 512
@@ -117,7 +117,7 @@ class TurnDetector:
                 self._silence_ms += self._chunk_ms
                 if self._silence_ms >= self._end_of_turn_ms:
                     audio = bytes(self._speech_buffer)
-                    self._reset_turn()
+                    self.reset_turn()
                     return audio
 
         return None
@@ -126,11 +126,11 @@ class TurnDetector:
         """Force-flush whatever is in the buffer."""
         if self._speech_buffer:
             audio = bytes(self._speech_buffer)
-            self._reset_turn()
+            self.reset_turn()
             return audio
         return None
 
-    def _reset_turn(self) -> None:
+    def reset_turn(self) -> None:
         self._speech_buffer.clear()
         self._is_speaking = False
         self._speech_ms = 0

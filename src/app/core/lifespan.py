@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -61,7 +62,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     yield
 
-    await Tortoise.close_connections()
+    with contextlib.suppress(Exception):
+        await Tortoise.close_connections()
     await app.state.http_client.aclose()
     if app.state.redis:
         await app.state.redis.aclose()

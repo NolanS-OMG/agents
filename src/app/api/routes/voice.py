@@ -95,7 +95,7 @@ async def media_stream(ws: WebSocket) -> None:
                             "streamSid": stream_sid,
                         }))
                         state = CallState.LISTENING
-                        turn_detector._reset_turn()
+                        turn_detector.reset_turn()
                     continue
 
                 # Alimentar al turn detector
@@ -115,7 +115,6 @@ async def media_stream(ws: WebSocket) -> None:
                     if response_audio:
                         state = CallState.SPEAKING
                         await _send_audio(ws, stream_sid, response_audio)
-                        state = CallState.LISTENING
                     else:
                         state = CallState.LISTENING
 
