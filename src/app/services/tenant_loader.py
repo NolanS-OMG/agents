@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 from redis.asyncio import Redis
 
@@ -21,7 +22,7 @@ async def load_tenant_from_db(tenant_id: str, redis: Redis | None = None) -> Ten
 
     try:
         docs = await KnowledgeDocument.filter(tenant_id=tenant_id, status="stable").all()
-        prompt = await TenantPrompt.filter(tenant_id=tenant_id, active=True).first()
+        prompts = await TenantPrompt.filter(tenant_id=tenant_id, active=True).all()
     except Exception as e:
         logger.warning(f"Failed to load tenant {tenant_id} from DB: {e}")
         return None
@@ -29,7 +30,7 @@ async def load_tenant_from_db(tenant_id: str, redis: Redis | None = None) -> Ten
     if not docs:
         return None
 
-    config = TenantConfig(tenant_id=tenant_id, docs=docs, prompt=prompt)
+    config = TenantConfig(tenant_id=tenant_id, docs=docs, prompts=prompts)
 
     if redis:
         try:
@@ -68,26 +69,33 @@ def _serialize_tenant_config(config: TenantConfig) -> dict:
             }
             for d in config._docs
         ],
-        "prompt": {
-            "estilo": config._prompt.estilo,
-            "system_prompt": config._prompt.system_prompt,
-        }
-        if config._prompt
-        else None,
+        "prompts": [
+            {"estilo": p.estilo, "system_prompt": p.system_prompt}
+            for p in config._prompts
+        ],
     }
 
 
+class _CachedDoc:
+    __slots__ = (
+        "slug", "doc_type", "title", "description",
+        "body", "campos_requeridos", "campos_opcionales", "confirmacion_requerida",
+    )
+
+    def __init__(self, **kw: Any) -> None:
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
+class _CachedPrompt:
+    __slots__ = ("estilo", "system_prompt")
+
+    def __init__(self, **kw: Any) -> None:
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
 def _deserialize_tenant_config(data: dict) -> TenantConfig:
-    class FakeDoc:
-        def __init__(self, **kw):
-            for k, v in kw.items():
-                setattr(self, k, v)
-
-    class FakePrompt:
-        def __init__(self, **kw):
-            for k, v in kw.items():
-                setattr(self, k, v)
-
-    docs = [FakeDoc(**d) for d in data["docs"]]
-    prompt = FakePrompt(**data["prompt"]) if data["prompt"] else None
-    return TenantConfig(tenant_id=data["tenant_id"], docs=docs, prompt=prompt)
+    docs = [_CachedDoc(**d) for d in data["docs"]]
+    prompts = [_CachedPrompt(**p) for p in data["prompts"]]
+    return TenantConfig(tenant_id=data["tenant_id"], docs=docs, prompts=prompts)

@@ -49,11 +49,11 @@ class TenantConfig:
         self,
         tenant_id: str,
         docs: list[KnowledgeDocument] | list[OKFDocument] | None = None,
-        prompt: TenantPrompt | None = None,
+        prompts: list[TenantPrompt] | None = None,
     ) -> None:
         self.tenant_id = tenant_id
         self._docs = docs or []
-        self._prompt = prompt
+        self._prompts = prompts or []
         self._is_legacy = len(self._docs) > 0 and isinstance(self._docs[0], OKFDocument)
 
     @classmethod
@@ -69,7 +69,7 @@ class TenantConfig:
                     docs_raw.append(OKFDocument(md_file))
                 except Exception as e:
                     logger.warning(f"Error loading {md_file}: {e}")
-        return cls(tenant_id=tenant_id, docs=docs_raw, prompt=None)
+        return cls(tenant_id=tenant_id, docs=docs_raw, prompts=[])
 
     @property
     def index(self) -> str:
@@ -118,8 +118,9 @@ class TenantConfig:
             if promo_doc:
                 parts.append(promo_doc.body)
             parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
-            if self._prompt and self._prompt.estilo == estilo:
-                parts.append(f"\nESTILO DE COMUNICACIÓN:\n{self._prompt.system_prompt}")
+            prompt = next((p for p in self._prompts if p.estilo == estilo), None)
+            if prompt:
+                parts.append(f"\nESTILO DE COMUNICACIÓN:\n{prompt.system_prompt}")
 
         return "\n\n".join(parts)
 
