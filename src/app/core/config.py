@@ -49,5 +49,7 @@ class Settings(BaseSettings):
     database_url: str = Field(default="postgres://agente:dev_password_123@localhost:5434/agente_ia")
     credential_encryption_key: str = Field(default="")
 
+    groq_api_key: str = Field(default="")
+
 
 settings = Settings()
