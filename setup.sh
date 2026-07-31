@@ -24,7 +24,7 @@ fi
 
 # Install dependencies
 echo ">> Instalando dependencias con uv..."
-uv sync --extra voice
+uv sync
 
 # Start Redis via Docker if not already running
 if docker ps --format '{{.Names}}' | grep -q "prototipo-agente-redis"; then
@@ -42,17 +42,31 @@ else
     docker compose up postgres -d --wait
 fi
 
+# Apply database schema
+echo ">> Aplicando schema de base de datos..."
+uv run python -c "
+import asyncio
+from tortoise import Tortoise
+from src.app.core.config import settings
+
+async def init():
+    await Tortoise.init(db_url=settings.database_url, modules={'models': ['src.app.db.models']})
+    await Tortoise.generate_schemas(safe=True)
+    await Tortoise.close_connections()
+
+asyncio.run(init())
+"
+echo "   Schema OK"
+
 # Start FastAPI with uvicorn
 echo ""
 echo "=== Listo ==="
 echo "  API:     http://localhost:8000"
 echo "  Docs:    http://localhost:8000/docs"
 echo "  Redis:   localhost:6379 (Docker)"
-echo "  PG:      localhost:5432 (Docker)"
+echo "  PG:      localhost:5434 (Docker)"
 echo ""
-echo "  ngrok:   Corre 'ngrok http 8000' en otra terminal para WhatsApp."
-echo ""
-echo "  Ctrl+C para detener. 'docker compose down' para apagar Redis."
+echo "  Ctrl+C para detener. 'docker compose down' para apagar todo."
 echo ""
 
 exec uv run uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
