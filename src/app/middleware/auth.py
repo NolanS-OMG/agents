@@ -17,7 +17,6 @@ EXCLUDED_PREFIXES = (
     "/webhook/whatsapp",
     "/incoming-call",
     "/ws/",
-    "/api/v1/chat",
     "/api/v1/sessions/",
 )
 
