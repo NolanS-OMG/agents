@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import time
+from collections.abc import Coroutine
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
@@ -19,8 +21,16 @@ from src.app.tools.registry import get_tools_for_tenant
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["webhook"])
 
+_background_tasks: set[asyncio.Task[Any]] = set()
+
 MAX_CONTEXT_WINDOW = 128_000
 DEDUP_TTL = 300
+
+
+def _bg(coro: Coroutine[Any, Any, Any]) -> None:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def _get_tenant_whatsapp_creds(tenant_id: str) -> tuple[str, str, str]:
@@ -88,8 +98,8 @@ async def whatsapp_webhook_tenant(request: Request, tenant_id: str) -> Response:
 
     if redis and incoming.message_id:
         dedup_key = f"dedup:{tenant_id}:{incoming.message_id}"
-        already_seen = await redis.set(dedup_key, "1", ex=DEDUP_TTL, nx=True)
-        if not already_seen:
+        is_new = await redis.set(dedup_key, "1", ex=DEDUP_TTL, nx=True)
+        if not is_new:
             return Response(content="OK", status_code=200)
 
     metrics = request.app.state.metrics
@@ -119,7 +129,7 @@ async def whatsapp_webhook_tenant(request: Request, tenant_id: str) -> Response:
             ))
             return Response(content="OK", status_code=200)
 
-    asyncio.create_task(_process_message_tenant(request, incoming, adapter, tenant_id))
+    _bg(_process_message_tenant(request, incoming, adapter, tenant_id))
     return Response(content="OK", status_code=200)
 
 
@@ -139,18 +149,16 @@ async def whatsapp_webhook(request: Request) -> Response:
     if not incoming:
         return Response(content="OK", status_code=200)
 
-    # Deduplicación: si ya procesamos este message_id, ignorar
     if redis and incoming.message_id:
         dedup_key = f"dedup:{incoming.message_id}"
-        already_seen = await redis.set(dedup_key, "1", ex=DEDUP_TTL, nx=True)
-        if not already_seen:
+        is_new = await redis.set(dedup_key, "1", ex=DEDUP_TTL, nx=True)
+        if not is_new:
             logger.info(f"[WA] Mensaje duplicado ignorado: {incoming.message_id}")
             return Response(content="OK", status_code=200)
 
     metrics = request.app.state.metrics
     metrics.increment("messages_received")
 
-    # Rate limit y needs_human son rápidos — se ejecutan antes de retornar 200
     if redis:
         allowed = await check_rate_limit(
             redis, incoming.sender_id,
@@ -175,8 +183,7 @@ async def whatsapp_webhook(request: Request) -> Response:
             ))
             return Response(content="OK", status_code=200)
 
-    # Procesamiento pesado (LLM) en background — retornamos 200 a Meta inmediatamente
-    asyncio.create_task(_process_message(request, incoming, adapter))
+    _bg(_process_message(request, incoming, adapter))
     return Response(content="OK", status_code=200)
 
 
@@ -191,7 +198,6 @@ async def _process_message(
     metrics = request.app.state.metrics
     analytics = request.app.state.analytics
 
-    # Si es audio, transcribir primero
     user_text = incoming.message
     input_type = "text"
     transcription_ms = 0
