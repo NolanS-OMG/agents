@@ -17,16 +17,13 @@ async def check_rate_limit(
 
     pipe = redis.pipeline()
     pipe.zremrangebyscore(key, 0, cutoff)
+    pipe.zadd(key, {str(now): now})
     pipe.zcard(key)
+    pipe.expire(key, window_secs)
     results = await pipe.execute()
 
-    count: int = results[1]
-    if count >= max_msgs:
-        return False
-
-    await redis.zadd(key, {str(now): now})
-    await redis.expire(key, window_secs)
-    return True
+    count: int = results[2]
+    return count <= max_msgs
 
 
 async def check_tenant_rate_limit(
