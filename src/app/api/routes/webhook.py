@@ -289,7 +289,7 @@ async def _process_message(
                 f"tps={result.tokens_per_second}, cost=${result.cost_usd:.5f}): "
                 f"{result.response[:80]}")
 
-    analytics.log_message(
+    await analytics.log_message(
         conversation_id=incoming.sender_id,
         role="user",
         content=user_text,
@@ -333,7 +333,7 @@ async def _process_message(
 
     webhook_total_ms = int((time.time() - webhook_start) * 1000)
 
-    analytics.log_message(
+    await analytics.log_message(
         conversation_id=incoming.sender_id,
         role="assistant",
         content=result.response,
@@ -366,7 +366,7 @@ async def _process_message(
     user_msgs = [m.content for m in result.messages if m.role == "user" and m.content]
     bot_msgs = [m.content for m in result.messages if m.role == "assistant" and m.content]
     tools_used = [result.tool_used] if result.tool_used else []
-    analytics.update_conversation(
+    await analytics.update_conversation(
         conversation_id=incoming.sender_id,
         user_messages=user_msgs,
         bot_messages=bot_msgs,

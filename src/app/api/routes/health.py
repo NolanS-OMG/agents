@@ -29,5 +29,5 @@ async def analytics(request: Request) -> dict[str, Any]:
     store = getattr(request.app.state, "analytics", None)
     if not store:
         return {"error": "Analytics not available"}
-    summary: dict[str, Any] = store.get_summary()
+    summary: dict[str, Any] = await store.get_summary()
     return summary

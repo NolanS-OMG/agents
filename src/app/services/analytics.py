@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import re
 import sqlite3
@@ -147,7 +148,7 @@ class AnalyticsStore:
         self._conn.execute("PRAGMA journal_mode=WAL")
         _init_db(self._conn)
 
-    def log_message(
+    async def log_message(
         self,
         conversation_id: str,
         role: str,
@@ -176,6 +177,45 @@ class AnalyticsStore:
         tts_ms: int = 0,
         transcription_text: str | None = None,
     ) -> None:
+        await asyncio.to_thread(
+            self._sync_log_message,
+            conversation_id, role, content, tool_used, tokens_in, tokens_out,
+            response_latency_ms, model_used, tenant_id, channel, cost_usd,
+            cached_tokens, reasoning_tokens, finish_reason, generation_id,
+            retry_count, tool_execution_ms, webhook_total_ms, tokens_per_second,
+            context_window_used_pct, ttft_ms, input_type, audio_duration_ms,
+            transcription_ms, tts_ms, transcription_text,
+        )
+
+    def _sync_log_message(
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
+        tool_used: str | None,
+        tokens_in: int,
+        tokens_out: int,
+        response_latency_ms: int,
+        model_used: str | None,
+        tenant_id: str | None,
+        channel: str,
+        cost_usd: float,
+        cached_tokens: int,
+        reasoning_tokens: int,
+        finish_reason: str | None,
+        generation_id: str | None,
+        retry_count: int,
+        tool_execution_ms: int,
+        webhook_total_ms: int,
+        tokens_per_second: float,
+        context_window_used_pct: float,
+        ttft_ms: int,
+        input_type: str,
+        audio_duration_ms: int,
+        transcription_ms: int,
+        tts_ms: int,
+        transcription_text: str | None,
+    ) -> None:
         now = time.time()
         self._conn.execute(
             """INSERT INTO messages
@@ -199,7 +239,7 @@ class AnalyticsStore:
         )
         self._conn.commit()
 
-    def update_conversation(
+    async def update_conversation(
         self,
         conversation_id: str,
         user_messages: list[str],
@@ -215,6 +255,30 @@ class AnalyticsStore:
         model_actual: str | None = None,
         tokens_per_second: float = 0.0,
         action_type: str | None = None,
+    ) -> None:
+        await asyncio.to_thread(
+            self._sync_update_conversation,
+            conversation_id, user_messages, bot_messages, tools_called,
+            total_tokens_in, total_tokens_out, latencies_ms, escalation,
+            tenant_id, channel, cost_usd, model_actual, tokens_per_second, action_type,
+        )
+
+    def _sync_update_conversation(
+        self,
+        conversation_id: str,
+        user_messages: list[str],
+        bot_messages: list[str],
+        tools_called: list[str],
+        total_tokens_in: int,
+        total_tokens_out: int,
+        latencies_ms: list[int],
+        escalation: bool,
+        tenant_id: str | None,
+        channel: str,
+        cost_usd: float,
+        model_actual: str | None,
+        tokens_per_second: float,
+        action_type: str | None,
     ) -> None:
         now = time.time()
         total_turns = len(user_messages) + len(bot_messages)
@@ -264,7 +328,10 @@ class AnalyticsStore:
         )
         self._conn.commit()
 
-    def get_summary(self) -> dict[str, Any]:
+    async def get_summary(self) -> dict[str, Any]:
+        return await asyncio.to_thread(self._sync_get_summary)
+
+    def _sync_get_summary(self) -> dict[str, Any]:
         row = self._conn.execute("""
             SELECT
                 COUNT(*) as total_conversations,
