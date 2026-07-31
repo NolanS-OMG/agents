@@ -1,5 +1,6 @@
 import json
 import time
+from dataclasses import dataclass, field
 from typing import Any
 
 from src.app.services.llm.base import LLMMessage, LLMProvider, LLMResponse
@@ -27,40 +28,23 @@ DATOS YA DISPONIBLES (no pidas estos al usuario):
 MAX_TOOL_ITERATIONS = 5
 
 
+@dataclass(slots=True)
 class AgentResult:
-    def __init__(
-        self,
-        response: str,
-        tool_used: str | None,
-        messages: list[LLMMessage],
-        usage: dict[str, Any],
-        needs_human: bool = False,
-        total_llm_calls: int = 1,
-        tool_execution_ms: int = 0,
-        model_actual: str = "",
-        cost_usd: float = 0.0,
-        context_tokens: int = 0,
-        generation_id: str = "",
-        finish_reason: str = "",
-        tokens_per_second: float = 0.0,
-        ttft_ms: int = 0,
-        retry_count: int = 0,
-    ) -> None:
-        self.response = response
-        self.tool_used = tool_used
-        self.messages = messages
-        self.usage = usage
-        self.needs_human = needs_human
-        self.total_llm_calls = total_llm_calls
-        self.tool_execution_ms = tool_execution_ms
-        self.model_actual = model_actual
-        self.cost_usd = cost_usd
-        self.context_tokens = context_tokens
-        self.generation_id = generation_id
-        self.finish_reason = finish_reason
-        self.tokens_per_second = tokens_per_second
-        self.ttft_ms = ttft_ms
-        self.retry_count = retry_count
+    response: str
+    tool_used: str | None
+    messages: list[LLMMessage]
+    usage: dict[str, Any] = field(default_factory=dict)
+    needs_human: bool = False
+    total_llm_calls: int = 1
+    tool_execution_ms: int = 0
+    model_actual: str = ""
+    cost_usd: float = 0.0
+    context_tokens: int = 0
+    generation_id: str = ""
+    finish_reason: str = ""
+    tokens_per_second: float = 0.0
+    ttft_ms: int = 0
+    retry_count: int = 0
 
 
 class AgentRouter:
