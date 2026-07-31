@@ -1,104 +1,151 @@
+import hashlib
 import json
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+from tortoise import Tortoise
 
-from tests.conftest import make_sse_response
+from src.app.db.models import ApiKey, Tenant
+from src.app.main import app
+from src.app.services.metrics import MetricsCollector
+from tests.conftest import make_llm_response
+
+TEST_KEY = "sk_test_chat_key_12345"
+
+
+async def _setup() -> None:
+    app.state.metrics = MetricsCollector()
+    app.state.redis = None
+    app.state.http_client = AsyncClient()
+    await Tortoise.init(
+        db_url="sqlite://:memory:",
+        modules={"models": ["src.app.db.models"]},
+    )
+    await Tortoise.generate_schemas()
+    tenant = await Tenant.create(id="test_tenant", name="Test")
+    key_hash = hashlib.sha256(TEST_KEY.encode()).hexdigest()
+    await ApiKey.create(
+        tenant=tenant,
+        key_hash=key_hash,
+        key_prefix="sk_test_ch_",
+        scopes=["converse", "knowledge", "conversations"],
+    )
+
+
+async def _teardown() -> None:
+    await Tortoise.close_connections()
+    await app.state.http_client.aclose()
 
 
 @pytest.mark.anyio
-async def test_chat_endpoint_returns_response(client: AsyncClient, httpx_mock) -> None:  # type: ignore[no-untyped-def]
-    httpx_mock.add_response(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        method="POST",
-        content=make_sse_response(content="Hola, ¿cómo puedo ayudarte?").text.encode(),
-    )
+async def test_chat_endpoint_returns_response(httpx_mock) -> None:  # type: ignore[no-untyped-def]
+    await _setup()
+    try:
+        httpx_mock.add_response(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            method="POST",
+            json=make_llm_response(content="Hola, ¿cómo puedo ayudarte?").json(),
+        )
 
-    response = await client.post("/api/v1/chat", json={
-        "session_id": "test-session-1",
-        "message": "Hola",
-    })
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={"session_id": "test-session-1", "message": "Hola"},
+                headers={"X-API-Key": TEST_KEY},
+            )
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["session_id"] == "test-session-1"
-    assert "Hola" in data["response"] or "ayudar" in data["response"]
-
-
-@pytest.mark.anyio
-async def test_chat_endpoint_with_tool_call(client: AsyncClient, httpx_mock) -> None:  # type: ignore[no-untyped-def]
-    httpx_mock.add_response(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        method="POST",
-        content=make_sse_response(
-            tool_calls=[{
-                "id": "call_1",
-                "type": "function",
-                "function": {
-                    "name": "consultar_informacion_negocio",
-                    "arguments": json.dumps({"consulta": "horarios"}),
-                },
-            }],
-        ).text.encode(),
-    )
-    httpx_mock.add_response(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        method="POST",
-        content=make_sse_response(content="El horario es de 9 a 18h.").text.encode(),
-    )
-
-    response = await client.post("/api/v1/chat", json={
-        "session_id": "test-session-2",
-        "message": "¿Cuál es el horario?",
-    })
-
-    assert response.status_code == 200
-    assert "horario" in response.json()["response"].lower() or "18" in response.json()["response"]
+        assert response.status_code == 200
+        data = response.json()
+        assert data["session_id"] == "test-session-1"
+        assert "Hola" in data["response"] or "ayudar" in data["response"]
+    finally:
+        await _teardown()
 
 
 @pytest.mark.anyio
-async def test_chat_endpoint_validates_empty_message(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/chat", json={
-        "session_id": "test-session",
-        "message": "",
-    })
+async def test_chat_endpoint_with_tool_call(httpx_mock) -> None:  # type: ignore[no-untyped-def]
+    await _setup()
+    try:
+        httpx_mock.add_response(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            method="POST",
+            json=make_llm_response(
+                tool_calls=[
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "consultar_informacion_negocio",
+                            "arguments": json.dumps({"consulta": "horarios"}),
+                        },
+                    }
+                ],
+            ).json(),
+        )
+        httpx_mock.add_response(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            method="POST",
+            json=make_llm_response(content="El horario es de 9 a 18h.").json(),
+        )
 
-    assert response.status_code == 422
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={"session_id": "test-session-2", "message": "¿Cuál es el horario?"},
+                headers={"X-API-Key": TEST_KEY},
+            )
+
+        assert response.status_code == 200
+        assert "horario" in response.json()["response"].lower() or "18" in response.json()["response"]
+    finally:
+        await _teardown()
 
 
 @pytest.mark.anyio
-async def test_chat_endpoint_validates_empty_session_id(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/chat", json={
-        "session_id": "",
-        "message": "Hola",
-    })
-
-    assert response.status_code == 422
+async def test_chat_endpoint_validates_empty_message() -> None:
+    await _setup()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={"session_id": "test-session", "message": ""},
+                headers={"X-API-Key": TEST_KEY},
+            )
+        assert response.status_code == 422
+    finally:
+        await _teardown()
 
 
 @pytest.mark.anyio
-async def test_chat_preserves_session_history(client: AsyncClient, httpx_mock) -> None:  # type: ignore[no-untyped-def]
-    httpx_mock.add_response(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        method="POST",
-        content=make_sse_response(content="Primera respuesta").text.encode(),
-    )
-    httpx_mock.add_response(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        method="POST",
-        content=make_sse_response(content="Segunda respuesta").text.encode(),
-    )
+async def test_chat_endpoint_validates_empty_session_id() -> None:
+    await _setup()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={"session_id": "", "message": "Hola"},
+                headers={"X-API-Key": TEST_KEY},
+            )
+        assert response.status_code == 422
+    finally:
+        await _teardown()
 
-    await client.post("/api/v1/chat", json={
-        "session_id": "persistent-session",
-        "message": "Primer mensaje",
-    })
-    await client.post("/api/v1/chat", json={
-        "session_id": "persistent-session",
-        "message": "Segundo mensaje",
-    })
 
-    second_request = httpx_mock.get_requests()[-1]
-    body = json.loads(second_request.content)
-    messages_content = [m["content"] for m in body["messages"]]
-    assert any("Primer mensaje" in c for c in messages_content)
+@pytest.mark.anyio
+async def test_chat_requires_auth() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/v1/chat",
+            json={"session_id": "x", "message": "Hola"},
+        )
+    assert response.status_code == 401

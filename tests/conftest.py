@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 from pathlib import Path
@@ -11,6 +12,9 @@ from httpx import ASGITransport, AsyncClient
 from src.app.main import app
 from src.app.services.analytics import AnalyticsStore
 from src.app.services.metrics import MetricsCollector
+
+TEST_API_KEY = "test-key-12345"
+TEST_API_KEY_HASH = hashlib.sha256(TEST_API_KEY.encode()).hexdigest()
 
 
 @pytest.fixture
@@ -32,43 +36,24 @@ async def client(redis: FakeRedis) -> AsyncClient:  # type: ignore[misc]
     await app.state.http_client.aclose()
 
 
-def make_sse_response(
+def make_llm_response(
     content: str = "",
     tool_calls: list[dict[str, Any]] | None = None,
     model: str = "test-model",
     usage: dict[str, Any] | None = None,
 ) -> httpx.Response:
-    chunks: list[str] = []
-    gen_id = "gen-test-123"
-
-    if content:
-        chunk = {
-            "id": gen_id,
-            "model": model,
-            "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": None}],
-        }
-        chunks.append(f"data: {json.dumps(chunk)}\n\n")
-
+    message: dict[str, Any] = {"role": "assistant", "content": content}
     if tool_calls:
-        for tc in tool_calls:
-            chunk = {
-                "id": gen_id,
-                "model": model,
-                "choices": [{"index": 0, "delta": {"tool_calls": [
-                    {"index": 0, "id": tc["id"], "type": "function",
-                     "function": {"name": tc["function"]["name"], "arguments": tc["function"]["arguments"]}}
-                ]}, "finish_reason": None}],
-            }
-            chunks.append(f"data: {json.dumps(chunk)}\n\n")
+        message["tool_calls"] = tool_calls
 
-    finish = "tool_calls" if tool_calls else "stop"
-    final_chunk = {
-        "id": gen_id,
+    finish_reason = "tool_calls" if tool_calls else "stop"
+    data = {
+        "id": "gen-test-123",
         "model": model,
-        "choices": [{"index": 0, "delta": {}, "finish_reason": finish}],
+        "choices": [{"index": 0, "message": message, "finish_reason": finish_reason}],
         "usage": usage or {"prompt_tokens": 50, "completion_tokens": 10, "total_tokens": 60},
     }
-    chunks.append(f"data: {json.dumps(final_chunk)}\n\n")
-    chunks.append("data: [DONE]\n\n")
+    return httpx.Response(200, json=data)
 
-    return httpx.Response(200, text="".join(chunks))
+
+make_sse_response = make_llm_response
