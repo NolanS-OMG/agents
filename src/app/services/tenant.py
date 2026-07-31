@@ -52,9 +52,9 @@ class TenantConfig:
         prompts: list[TenantPrompt] | None = None,
     ) -> None:
         self.tenant_id = tenant_id
-        self._docs = docs or []
-        self._prompts = prompts or []
-        self._is_legacy = len(self._docs) > 0 and isinstance(self._docs[0], OKFDocument)
+        self.docs = docs or []
+        self.prompts = prompts or []
+        self._is_legacy = len(self.docs) > 0 and isinstance(self.docs[0], OKFDocument)
 
     @classmethod
     def from_filesystem(cls, tenant_id: str) -> TenantConfig:
@@ -77,7 +77,7 @@ class TenantConfig:
             doc = self._find_doc_by_path_legacy("index.md")
             return doc.body if doc else ""
         lines = ["# Índice de Documentos\n"]
-        for doc in self._docs:
+        for doc in self.docs:
             if doc.doc_type != "negocio":
                 lines.append(f"- [{doc.title}]({doc.slug}.md)")
         return "\n".join(lines)
@@ -87,7 +87,7 @@ class TenantConfig:
         if self._is_legacy:
             doc = self._find_doc_legacy("Negocio")
             return doc.frontmatter if doc else {}
-        for doc in self._docs:
+        for doc in self.docs:
             if doc.doc_type == "negocio":
                 return {"title": doc.title, "description": doc.description}
         return {}
@@ -111,14 +111,14 @@ class TenantConfig:
             if estilo_doc:
                 parts.append(f"\nESTILO DE COMUNICACIÓN:\n{estilo_doc.body}")
         else:
-            negocio_doc = next((d for d in self._docs if d.doc_type == "negocio"), None)
+            negocio_doc = next((d for d in self.docs if d.doc_type == "negocio"), None)
             if negocio_doc:
                 parts.append(negocio_doc.body)
-            promo_doc = next((d for d in self._docs if d.doc_type == "promociones"), None)
+            promo_doc = next((d for d in self.docs if d.doc_type == "promociones"), None)
             if promo_doc:
                 parts.append(promo_doc.body)
             parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
-            prompt = next((p for p in self._prompts if p.estilo == estilo), None)
+            prompt = next((p for p in self.prompts if p.estilo == estilo), None)
             if prompt:
                 parts.append(f"\nESTILO DE COMUNICACIÓN:\n{prompt.system_prompt}")
 
@@ -129,7 +129,7 @@ class TenantConfig:
             doc = self._find_doc_by_path_legacy(ruta)
             return doc.body if doc else None
         slug = ruta.removesuffix(".md")
-        for doc in self._docs:
+        for doc in self.docs:
             if doc.slug == slug:
                 return doc.body
         return None
@@ -137,7 +137,7 @@ class TenantConfig:
     def get_acciones_config(self) -> list[dict[str, Any]]:
         acciones: list[dict[str, Any]] = []
         if self._is_legacy:
-            for doc in self._docs:
+            for doc in self.docs:
                 if doc.type != "Acción":
                     continue
                 campos_req = self._extract_table_column(doc.body, "Campos requeridos", 0)
@@ -151,7 +151,7 @@ class TenantConfig:
                     "confirmacion_requerida": "confirmación" in doc.body.lower(),
                 })
         else:
-            for doc in self._docs:
+            for doc in self.docs:
                 if doc.doc_type != "accion":
                     continue
                 categoria = self._slug_from_title(doc.title)
@@ -165,20 +165,20 @@ class TenantConfig:
         return acciones
 
     def _find_doc_legacy(self, type_: str) -> OKFDocument | None:
-        for doc in self._docs:
+        for doc in self.docs:
             if doc.type == type_:
                 return doc
         return None
 
     def _find_doc_by_path_legacy(self, ruta: str) -> OKFDocument | None:
         target = TENANTS_DIR / self.tenant_id / ruta
-        for doc in self._docs:
+        for doc in self.docs:
             if doc.path == target:
                 return doc
         return None
 
     def _find_estilo_legacy(self, estilo: str) -> OKFDocument | None:
-        for doc in self._docs:
+        for doc in self.docs:
             if doc.type == "Estilo" and estilo in doc.path.stem:
                 return doc
         return None

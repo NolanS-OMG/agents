@@ -67,11 +67,11 @@ def _serialize_tenant_config(config: TenantConfig) -> dict:
                 "campos_opcionales": d.campos_opcionales,
                 "confirmacion_requerida": d.confirmacion_requerida,
             }
-            for d in config._docs
+            for d in config.docs
         ],
         "prompts": [
             {"estilo": p.estilo, "system_prompt": p.system_prompt}
-            for p in config._prompts
+            for p in config.prompts
         ],
     }
 
