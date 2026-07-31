@@ -70,6 +70,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
     )
 
     stream_sid = ""
+    caller_id = ""
     state = CallState.LISTENING
     call_start = time.time()
     logger.info(f"[Voice:{tenant_id}] WebSocket conectado")
@@ -80,7 +81,10 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
             event = msg.get("event")
 
             if event == "start":
-                stream_sid = msg.get("start", {}).get("streamSid", "")
+                start_data = msg.get("start", {})
+                stream_sid = start_data.get("streamSid", "")
+                custom = start_data.get("customParameters", {})
+                caller_id = custom.get("From", "") or start_data.get("callSid", stream_sid)
 
             elif event == "media":
                 payload = msg.get("media", {}).get("payload", "")
@@ -100,7 +104,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 if utterance_audio:
                     state = CallState.PROCESSING
                     response_audio = await _process_and_synthesize_tenant(
-                        utterance_audio, voice_pipeline, ws, tenant_id
+                        utterance_audio, voice_pipeline, ws, tenant_id, caller_id
                     )
                     if response_audio:
                         state = CallState.SPEAKING
@@ -134,6 +138,7 @@ async def _process_and_synthesize_tenant(
     voice_pipeline: Any,
     ws: WebSocket,
     tenant_id: str,
+    caller_id: str = "",
 ) -> bytes | None:
     pcm_8k = audioop.ulaw2lin(mulaw_audio, 2)
     pcm_16k, _ = audioop.ratecv(pcm_8k, 2, 1, MULAW_SAMPLE_RATE, WHISPER_SAMPLE_RATE, None)
@@ -152,9 +157,10 @@ async def _process_and_synthesize_tenant(
     agent = AgentRouter(
         llm=llm, tools=tools,
         tenant_prompt=tenant.get_prompt("voz"),
+        sender_id=caller_id,
     )
 
-    session_key = f"{tenant_id}:voice_caller"
+    session_key = f"{tenant_id}:{caller_id or 'voice_anonymous'}"
     history = []
     if redis:
         try:
@@ -165,6 +171,14 @@ async def _process_and_synthesize_tenant(
 
     result = await agent.run(user_message=text, history=history)
     logger.info(f"[Voice:{tenant_id}] Respuesta: {result.response[:80]}")
+
+    if redis:
+        try:
+            session = SessionManager(redis, llm=llm)
+            relevant = [m for m in result.messages if m.role in ("user", "assistant") and m.content]
+            await session.save_history(session_key, relevant)
+        except Exception:
+            pass
 
     tts_bytes = await voice_pipeline.synthesize(result.response)
     if not tts_bytes:
