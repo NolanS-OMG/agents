@@ -1,11 +1,15 @@
 import asyncio
-import audioop
 import base64
 import enum
 import json
 import logging
 import time
+import warnings
 from typing import Any
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    import audioop
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response

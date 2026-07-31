@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-import audioop
+import warnings
 from collections import deque
 from typing import TYPE_CHECKING
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    import audioop
 
 import numpy as np
 from faster_whisper.vad import get_vad_model
