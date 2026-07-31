@@ -6,7 +6,7 @@ class Tenant(Model):
     id = fields.CharField(max_length=50, primary_key=True)
     name = fields.CharField(max_length=200)
     active = fields.BooleanField(default=True)
-    config = fields.JSONField(default={})
+    config = fields.JSONField(default=dict)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
@@ -19,7 +19,7 @@ class ApiKey(Model):
     tenant = fields.ForeignKeyField("models.Tenant", related_name="api_keys")
     key_hash = fields.CharField(max_length=64, unique=True)
     key_prefix = fields.CharField(max_length=20)
-    scopes = fields.JSONField(default=["converse", "knowledge", "conversations"])
+    scopes = fields.JSONField(default=lambda: ["converse", "knowledge", "conversations"])
     active = fields.BooleanField(default=True)
     last_used_at = fields.DatetimeField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
@@ -52,10 +52,10 @@ class KnowledgeDocument(Model):
     title = fields.CharField(max_length=300)
     description = fields.TextField(default="")
     body = fields.TextField()
-    tags = fields.JSONField(default=[])
+    tags = fields.JSONField(default=list)
     status = fields.CharField(max_length=20, default="stable")
-    campos_requeridos = fields.JSONField(default=[])
-    campos_opcionales = fields.JSONField(default=[])
+    campos_requeridos = fields.JSONField(default=list)
+    campos_opcionales = fields.JSONField(default=list)
     confirmacion_requerida = fields.BooleanField(default=False)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
@@ -94,7 +94,7 @@ class Conversation(Model):
     total_turns = fields.IntField(default=0)
     total_cost_usd = fields.FloatField(default=0.0)
     resolution_status = fields.CharField(max_length=20, default="active")
-    metadata = fields.JSONField(default={})
+    metadata = fields.JSONField(default=dict)
 
     class Meta:
         table = "conversations"
