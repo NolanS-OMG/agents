@@ -82,7 +82,7 @@ async def converse(
         stt_ms = int((time.time() - t_stt) * 1000)
         _bg(track_stt(
             tenant_id=tenant.tenant_id,
-            audio_duration_s=stt_ms / 1000,
+            audio_duration_s=len(audio_bytes) / 16000,
             latency_ms=stt_ms,
         ))
         if not text.strip():
