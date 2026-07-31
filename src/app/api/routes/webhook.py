@@ -225,10 +225,10 @@ async def _process_message(
             return
 
         input_type = "audio"
-        audio_duration_ms = int(len(audio_bytes) / 16 * 8)  # rough estimate for OGG
+        audio_duration_ms = 0
 
         t_stt = time.time()
-        user_text = voice_pipeline.transcribe(audio_bytes)
+        user_text = await asyncio.to_thread(voice_pipeline.transcribe, audio_bytes)
         transcription_ms = int((time.time() - t_stt) * 1000)
 
         if not user_text.strip():
@@ -418,7 +418,7 @@ async def _process_message_tenant(
             ))
             return
 
-        user_text = voice_pipeline.transcribe(audio_bytes)
+        user_text = await asyncio.to_thread(voice_pipeline.transcribe, audio_bytes)
         if not user_text.strip():
             await adapter.send_reply(OutgoingMessage(
                 channel="whatsapp",

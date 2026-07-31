@@ -161,7 +161,7 @@ async def _transcribe(
 
     voice_pipeline = getattr(request.app.state, "voice_pipeline", None)
     if voice_pipeline:
-        return voice_pipeline.transcribe(audio_bytes)
+        return await asyncio.to_thread(voice_pipeline.transcribe, audio_bytes)
 
     raise HTTPException(503, "No STT service available (set GROQ_API_KEY or enable voice)")
 
