@@ -107,26 +107,31 @@ async def whatsapp_webhook_tenant(request: Request, tenant_id: str) -> Response:
 
     if redis:
         allowed = await check_rate_limit(
-            redis, incoming.sender_id,
+            redis,
+            incoming.sender_id,
             max_msgs=settings.rate_limit_messages,
             window_secs=settings.rate_limit_window,
             tenant_id=tenant_id,
         )
         if not allowed:
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="Estás enviando muchos mensajes, espera un momento por favor.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="Estás enviando muchos mensajes, espera un momento por favor.",
+                )
+            )
             return Response(content="OK", status_code=200)
 
         session = SessionManager(redis, llm=None)
         if await session.is_needs_human(f"{tenant_id}:{incoming.sender_id}"):
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="Tu conversación está siendo atendida por un agente humano.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="Tu conversación está siendo atendida por un agente humano.",
+                )
+            )
             return Response(content="OK", status_code=200)
 
     _bg(_process_message_tenant(request, incoming, adapter, tenant_id))
@@ -161,26 +166,31 @@ async def whatsapp_webhook(request: Request) -> Response:
 
     if redis:
         allowed = await check_rate_limit(
-            redis, incoming.sender_id,
+            redis,
+            incoming.sender_id,
             max_msgs=settings.rate_limit_messages,
             window_secs=settings.rate_limit_window,
         )
         if not allowed:
             logger.warning(f"[WA] Rate limit excedido para {incoming.sender_id}")
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="Estás enviando muchos mensajes, espera un momento por favor.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="Estás enviando muchos mensajes, espera un momento por favor.",
+                )
+            )
             return Response(content="OK", status_code=200)
 
         session = SessionManager(redis, llm=None)
         if await session.is_needs_human(incoming.sender_id):
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="Tu conversación está siendo atendida por un agente humano. Te responderá pronto.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="Tu conversación está siendo atendida por un agente humano. Te responderá pronto.",
+                )
+            )
             return Response(content="OK", status_code=200)
 
     _bg(_process_message(request, incoming, adapter))
@@ -207,21 +217,25 @@ async def _process_message(
         voice_pipeline = getattr(request.app.state, "voice_pipeline", None)
         if not voice_pipeline:
             logger.warning("[WA] Audio recibido pero voice pipeline no disponible")
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="No puedo procesar audio en este momento. ¿Puedes escribir tu mensaje?",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="No puedo procesar audio en este momento. ¿Puedes escribir tu mensaje?",
+                )
+            )
             return
 
         audio_bytes = await adapter.download_media(incoming.media_id)
         if not audio_bytes:
             logger.error(f"[WA] No se pudo descargar media {incoming.media_id}")
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="No pude descargar tu audio. ¿Puedes intentar de nuevo?",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="No pude descargar tu audio. ¿Puedes intentar de nuevo?",
+                )
+            )
             return
 
         input_type = "audio"
@@ -232,11 +246,13 @@ async def _process_message(
         transcription_ms = int((time.time() - t_stt) * 1000)
 
         if not user_text.strip():
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="No pude entender el audio. ¿Puedes repetirlo o escribir tu mensaje?",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="No pude entender el audio. ¿Puedes repetirlo o escribir tu mensaje?",
+                )
+            )
             return
 
         logger.info(f"[WA] Audio transcrito ({transcription_ms}ms): {user_text[:80]}")
@@ -247,7 +263,8 @@ async def _process_message(
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
-        llm=llm, tools=tools,
+        llm=llm,
+        tools=tools,
         tenant_prompt=tenant.get_prompt(settings.estilo),
         sender_id=incoming.sender_id,
     )
@@ -266,11 +283,13 @@ async def _process_message(
     except Exception as e:
         logger.error(f"[WA] Error en agente: {e}")
         metrics.increment("errors")
-        await adapter.send_reply(OutgoingMessage(
-            channel="whatsapp",
-            recipient_id=incoming.sender_id,
-            message="Disculpa, tuve un problema técnico. ¿Puedes intentar de nuevo?",
-        ))
+        await adapter.send_reply(
+            OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="Disculpa, tuve un problema técnico. ¿Puedes intentar de nuevo?",
+            )
+        )
         return
 
     latency_ms = int((time.time() - t0) * 1000)
@@ -285,9 +304,11 @@ async def _process_message(
     if result.tool_used:
         metrics.increment(f"tool_calls:{result.tool_used}")
 
-    logger.info(f"[WA] Respuesta ({latency_ms}ms, ttft={result.ttft_ms}ms, "
-                f"tps={result.tokens_per_second}, cost=${result.cost_usd:.5f}): "
-                f"{result.response[:80]}")
+    logger.info(
+        f"[WA] Respuesta ({latency_ms}ms, ttft={result.ttft_ms}ms, "
+        f"tps={result.tokens_per_second}, cost=${result.cost_usd:.5f}): "
+        f"{result.response[:80]}"
+    )
 
     await analytics.log_message(
         conversation_id=incoming.sender_id,
@@ -309,8 +330,7 @@ async def _process_message(
         try:
             session = SessionManager(redis, llm=llm)
             relevant_messages = [
-                m for m in result.messages
-                if m.role in ("user", "assistant") and m.content
+                m for m in result.messages if m.role in ("user", "assistant") and m.content
             ]
             await session.save_history(
                 incoming.sender_id,
@@ -321,11 +341,13 @@ async def _process_message(
         except Exception:
             logger.warning("[WA] Redis no disponible, no se guardó historial")
 
-    send_success, send_ms = await adapter.send_reply(OutgoingMessage(
-        channel="whatsapp",
-        recipient_id=incoming.sender_id,
-        message=result.response,
-    ))
+    send_success, send_ms = await adapter.send_reply(
+        OutgoingMessage(
+            channel="whatsapp",
+            recipient_id=incoming.sender_id,
+            message=result.response,
+        )
+    )
 
     if not send_success:
         metrics.increment("whatsapp_send_failures")
@@ -346,9 +368,13 @@ async def _process_message(
         channel="whatsapp",
         cost_usd=result.cost_usd,
         cached_tokens=result.usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
-        if isinstance(result.usage.get("prompt_tokens_details"), dict) else 0,
-        reasoning_tokens=result.usage.get("completion_tokens_details", {}).get("reasoning_tokens", 0)
-        if isinstance(result.usage.get("completion_tokens_details"), dict) else 0,
+        if isinstance(result.usage.get("prompt_tokens_details"), dict)
+        else 0,
+        reasoning_tokens=result.usage.get("completion_tokens_details", {}).get(
+            "reasoning_tokens", 0
+        )
+        if isinstance(result.usage.get("completion_tokens_details"), dict)
+        else 0,
         finish_reason=result.finish_reason,
         generation_id=result.generation_id,
         retry_count=result.retry_count,
@@ -402,36 +428,43 @@ async def _process_message_tenant(
     if incoming.is_audio:
         voice_pipeline = getattr(request.app.state, "voice_pipeline", None)
         if not voice_pipeline:
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="No puedo procesar audio en este momento.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="No puedo procesar audio en este momento.",
+                )
+            )
             return
 
         audio_bytes = await adapter.download_media(incoming.media_id)
         if not audio_bytes:
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="No pude descargar tu audio.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="No pude descargar tu audio.",
+                )
+            )
             return
 
         user_text = await asyncio.to_thread(voice_pipeline.transcribe, audio_bytes)
         if not user_text.strip():
-            await adapter.send_reply(OutgoingMessage(
-                channel="whatsapp",
-                recipient_id=incoming.sender_id,
-                message="No pude entender el audio.",
-            ))
+            await adapter.send_reply(
+                OutgoingMessage(
+                    channel="whatsapp",
+                    recipient_id=incoming.sender_id,
+                    message="No pude entender el audio.",
+                )
+            )
             return
 
     tenant = await load_tenant_async(tenant_id, redis)
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
-        llm=llm, tools=tools,
+        llm=llm,
+        tools=tools,
         tenant_prompt=tenant.get_prompt("chat"),
         sender_id=incoming.sender_id,
     )
@@ -446,11 +479,13 @@ async def _process_message_tenant(
         result = await agent.run(user_message=user_text, history=history)
     except Exception as e:
         logger.error(f"[WA:{tenant_id}] Error: {e}")
-        await adapter.send_reply(OutgoingMessage(
-            channel="whatsapp",
-            recipient_id=incoming.sender_id,
-            message="Disculpa, tuve un problema técnico.",
-        ))
+        await adapter.send_reply(
+            OutgoingMessage(
+                channel="whatsapp",
+                recipient_id=incoming.sender_id,
+                message="Disculpa, tuve un problema técnico.",
+            )
+        )
         return
 
     if redis:
@@ -460,9 +495,11 @@ async def _process_message_tenant(
         if result.needs_human:
             await session.mark_needs_human(session_key)
 
-    await adapter.send_reply(OutgoingMessage(
-        channel="whatsapp",
-        recipient_id=incoming.sender_id,
-        message=result.response,
-    ))
+    await adapter.send_reply(
+        OutgoingMessage(
+            channel="whatsapp",
+            recipient_id=incoming.sender_id,
+            message=result.response,
+        )
+    )
     logger.info(f"[WA:{tenant_id}] Respuesta enviada a {incoming.sender_id}")

@@ -31,8 +31,12 @@ class VoicePipeline:
     def transcribe(self, audio_bytes: bytes, language: str = "es") -> str:
         return self._transcriber.transcribe(audio_bytes, language=language)
 
-    def transcribe_pcm(self, pcm_bytes: bytes, sample_rate: int = 16000, language: str = "es") -> str:
-        return self._transcriber.transcribe_pcm(pcm_bytes, sample_rate=sample_rate, language=language)
+    def transcribe_pcm(
+        self, pcm_bytes: bytes, sample_rate: int = 16000, language: str = "es"
+    ) -> str:
+        return self._transcriber.transcribe_pcm(
+            pcm_bytes, sample_rate=sample_rate, language=language
+        )
 
     async def synthesize(self, text: str) -> bytes | None:
         if not self._synthesizer:

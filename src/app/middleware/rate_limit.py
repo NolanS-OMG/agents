@@ -32,6 +32,4 @@ async def check_tenant_rate_limit(
     max_msgs: int = 100,
     window_secs: int = 60,
 ) -> bool:
-    return await check_rate_limit(
-        redis, tenant_id, max_msgs, window_secs, tenant_id="global"
-    )
+    return await check_rate_limit(redis, tenant_id, max_msgs, window_secs, tenant_id="global")

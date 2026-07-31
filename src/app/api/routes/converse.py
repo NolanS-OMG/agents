@@ -30,6 +30,7 @@ def _bg(coro: Coroutine[Any, Any, Any]) -> None:
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
 
+
 router = APIRouter(prefix="/api/v1", tags=["converse"])
 
 ALLOWED_AUDIO_TYPES = {"audio/ogg", "audio/mpeg", "audio/wav", "audio/mp4", "audio/webm"}
@@ -80,11 +81,13 @@ async def converse(
         t_stt = time.time()
         text = await _transcribe(audio_bytes, audio.filename or "audio.ogg", http_client, request)
         stt_ms = int((time.time() - t_stt) * 1000)
-        _bg(track_stt(
-            tenant_id=tenant.tenant_id,
-            audio_duration_s=len(audio_bytes) / 16000,
-            latency_ms=stt_ms,
-        ))
+        _bg(
+            track_stt(
+                tenant_id=tenant.tenant_id,
+                audio_duration_s=len(audio_bytes) / 16000,
+                latency_ms=stt_ms,
+            )
+        )
         if not text.strip():
             return ConverseResponse(
                 conversant_id=conversant_id,
@@ -98,9 +101,7 @@ async def converse(
     tenant_config = await load_tenant_async(tenant.tenant_id, redis)
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant_config)
-    agent = AgentRouter(
-        llm=llm, tools=tools, tenant_prompt=tenant_config.get_prompt(estilo)
-    )
+    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_config.get_prompt(estilo))
 
     session_key = f"{tenant.tenant_id}:{conversant_id}"
     history = []
@@ -112,14 +113,16 @@ async def converse(
     result = await agent.run(user_message=text, history=history)
     llm_latency_ms = int((time.time() - t_llm) * 1000)
 
-    _bg(track_llm_call(
-        tenant_id=tenant.tenant_id,
-        model=result.model_actual,
-        input_tokens=result.usage.get("prompt_tokens", 0),
-        output_tokens=result.usage.get("completion_tokens", 0),
-        latency_ms=llm_latency_ms,
-        cost_usd=result.cost_usd,
-    ))
+    _bg(
+        track_llm_call(
+            tenant_id=tenant.tenant_id,
+            model=result.model_actual,
+            input_tokens=result.usage.get("prompt_tokens", 0),
+            output_tokens=result.usage.get("completion_tokens", 0),
+            latency_ms=llm_latency_ms,
+            cost_usd=result.cost_usd,
+        )
+    )
 
     if session:
         relevant = [m for m in result.messages if m.role in ("user", "assistant") and m.content]
@@ -131,11 +134,13 @@ async def converse(
         audio_base64 = await _synthesize(result.response, request)
         tts_ms = int((time.time() - t_tts) * 1000)
         if audio_base64:
-            _bg(track_tts(
-                tenant_id=tenant.tenant_id,
-                characters=len(result.response),
-                latency_ms=tts_ms,
-            ))
+            _bg(
+                track_tts(
+                    tenant_id=tenant.tenant_id,
+                    characters=len(result.response),
+                    latency_ms=tts_ms,
+                )
+            )
 
     latency_ms = int((time.time() - start) * 1000)
 

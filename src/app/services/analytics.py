@@ -179,12 +179,32 @@ class AnalyticsStore:
     ) -> None:
         await asyncio.to_thread(
             self._sync_log_message,
-            conversation_id, role, content, tool_used, tokens_in, tokens_out,
-            response_latency_ms, model_used, tenant_id, channel, cost_usd,
-            cached_tokens, reasoning_tokens, finish_reason, generation_id,
-            retry_count, tool_execution_ms, webhook_total_ms, tokens_per_second,
-            context_window_used_pct, ttft_ms, input_type, audio_duration_ms,
-            transcription_ms, tts_ms, transcription_text,
+            conversation_id,
+            role,
+            content,
+            tool_used,
+            tokens_in,
+            tokens_out,
+            response_latency_ms,
+            model_used,
+            tenant_id,
+            channel,
+            cost_usd,
+            cached_tokens,
+            reasoning_tokens,
+            finish_reason,
+            generation_id,
+            retry_count,
+            tool_execution_ms,
+            webhook_total_ms,
+            tokens_per_second,
+            context_window_used_pct,
+            ttft_ms,
+            input_type,
+            audio_duration_ms,
+            transcription_ms,
+            tts_ms,
+            transcription_text,
         )
 
     def _sync_log_message(
@@ -227,14 +247,35 @@ class AnalyticsStore:
                 input_type, audio_duration_ms, transcription_ms, tts_ms, transcription_text)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                conversation_id, role, content, now,
-                len(content), len(content.split()),
-                tool_used, tokens_in, tokens_out, response_latency_ms,
-                model_used, tenant_id, channel, cost_usd, cached_tokens,
-                reasoning_tokens, finish_reason, generation_id, retry_count,
-                tool_execution_ms, webhook_total_ms, tokens_per_second,
-                context_window_used_pct, ttft_ms,
-                input_type, audio_duration_ms, transcription_ms, tts_ms, transcription_text,
+                conversation_id,
+                role,
+                content,
+                now,
+                len(content),
+                len(content.split()),
+                tool_used,
+                tokens_in,
+                tokens_out,
+                response_latency_ms,
+                model_used,
+                tenant_id,
+                channel,
+                cost_usd,
+                cached_tokens,
+                reasoning_tokens,
+                finish_reason,
+                generation_id,
+                retry_count,
+                tool_execution_ms,
+                webhook_total_ms,
+                tokens_per_second,
+                context_window_used_pct,
+                ttft_ms,
+                input_type,
+                audio_duration_ms,
+                transcription_ms,
+                tts_ms,
+                transcription_text,
             ),
         )
         self._conn.commit()
@@ -258,9 +299,20 @@ class AnalyticsStore:
     ) -> None:
         await asyncio.to_thread(
             self._sync_update_conversation,
-            conversation_id, user_messages, bot_messages, tools_called,
-            total_tokens_in, total_tokens_out, latencies_ms, escalation,
-            tenant_id, channel, cost_usd, model_actual, tokens_per_second, action_type,
+            conversation_id,
+            user_messages,
+            bot_messages,
+            tools_called,
+            total_tokens_in,
+            total_tokens_out,
+            latencies_ms,
+            escalation,
+            tenant_id,
+            channel,
+            cost_usd,
+            model_actual,
+            tokens_per_second,
+            action_type,
         )
 
     def _sync_update_conversation(
@@ -318,12 +370,32 @@ class AnalyticsStore:
                 model_actual, avg_tokens_per_second, max_latency_ms)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                conversation_id, tenant_id, channel, started_at, now, total_turns,
-                total_tokens_in, total_tokens_out, str(tools_called), frustration,
-                int(resolution), 0, int(escalation),
-                int(tool_loop), bot_errors, avg_latency, duration,
-                total_cost, cost_per_turn, turns_to_res, action_executed,
-                action_type, return_user, model_actual, tokens_per_second, max_latency,
+                conversation_id,
+                tenant_id,
+                channel,
+                started_at,
+                now,
+                total_turns,
+                total_tokens_in,
+                total_tokens_out,
+                str(tools_called),
+                frustration,
+                int(resolution),
+                0,
+                int(escalation),
+                int(tool_loop),
+                bot_errors,
+                avg_latency,
+                duration,
+                total_cost,
+                cost_per_turn,
+                turns_to_res,
+                action_executed,
+                action_type,
+                return_user,
+                model_actual,
+                tokens_per_second,
+                max_latency,
             ),
         )
         self._conn.commit()
@@ -388,9 +460,12 @@ class AnalyticsStore:
                 score += 1
 
         for i in range(1, len(user_messages)):
-            if SequenceMatcher(
-                None, user_messages[i - 1].lower(), user_messages[i].lower()
-            ).ratio() > 0.85:
+            if (
+                SequenceMatcher(
+                    None, user_messages[i - 1].lower(), user_messages[i].lower()
+                ).ratio()
+                > 0.85
+            ):
                 score += 2
 
         return score

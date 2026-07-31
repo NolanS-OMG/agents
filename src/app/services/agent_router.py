@@ -104,10 +104,12 @@ class AgentRouter:
                 tool_args = {}
             call_id = tool_call.get("id", "call_0")
 
-            messages.append(LLMMessage(
-                role="assistant",
-                content=json.dumps({"tool_calls": [tool_call]}),
-            ))
+            messages.append(
+                LLMMessage(
+                    role="assistant",
+                    content=json.dumps({"tool_calls": [tool_call]}),
+                )
+            )
 
             t0 = time.time()
             tool_result = await self._execute_tool(tool_name, tool_args)
@@ -125,24 +127,30 @@ class AgentRouter:
                     needs_human=True,
                 )
 
-            messages.append(LLMMessage(
-                role="tool",
-                content=json.dumps({
-                    "tool_call_id": call_id,
-                    "name": tool_name,
-                    "result": tool_result.model_dump(),
-                }),
-            ))
+            messages.append(
+                LLMMessage(
+                    role="tool",
+                    content=json.dumps(
+                        {
+                            "tool_call_id": call_id,
+                            "name": tool_name,
+                            "result": tool_result.model_dump(),
+                        }
+                    ),
+                )
+            )
 
             if isinstance(tool_result, ToolError):
-                messages.append(LLMMessage(
-                    role="system",
-                    content=(
-                        f"La herramienta '{tool_name}' reportó campos faltantes: "
-                        f"{tool_result.campos_faltantes}. "
-                        "Solicita amablemente SOLO estos datos al usuario."
-                    ),
-                ))
+                messages.append(
+                    LLMMessage(
+                        role="system",
+                        content=(
+                            f"La herramienta '{tool_name}' reportó campos faltantes: "
+                            f"{tool_result.campos_faltantes}. "
+                            "Solicita amablemente SOLO estos datos al usuario."
+                        ),
+                    )
+                )
 
         return AgentResult(
             response="Lo siento, no pude completar la operación. ¿Puedo ayudarte de otra forma?",

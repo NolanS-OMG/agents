@@ -65,8 +65,10 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
 
     vad = SileroVAD(threshold=0.5, sample_rate=MULAW_SAMPLE_RATE)
     turn_detector = TurnDetector(
-        vad=vad, end_of_turn_ms=settings.vad_silence_ms,
-        min_speech_ms=150, prefix_padding_ms=300,
+        vad=vad,
+        end_of_turn_ms=settings.vad_silence_ms,
+        min_speech_ms=150,
+        prefix_padding_ms=300,
     )
 
     stream_sid = ""
@@ -93,9 +95,14 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 if state == CallState.SPEAKING:
                     prob = vad.process_chunk(mulaw_chunk)
                     if prob is not None and prob >= 0.5:
-                        await ws.send_text(json.dumps({
-                            "event": "clear", "streamSid": stream_sid,
-                        }))
+                        await ws.send_text(
+                            json.dumps(
+                                {
+                                    "event": "clear",
+                                    "streamSid": stream_sid,
+                                }
+                            )
+                        )
                         state = CallState.LISTENING
                         turn_detector.reset_turn()
                     continue
@@ -155,7 +162,8 @@ async def _process_and_synthesize_tenant(
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
-        llm=llm, tools=tools,
+        llm=llm,
+        tools=tools,
         tenant_prompt=tenant.get_prompt("voz"),
         sender_id=caller_id,
     )
@@ -192,9 +200,7 @@ async def _process_and_synthesize(
     voice_pipeline: Any,
     ws: WebSocket,
 ) -> bytes | None:
-    return await _process_and_synthesize_tenant(
-        mulaw_audio, voice_pipeline, ws, settings.tenant_id
-    )
+    return await _process_and_synthesize_tenant(mulaw_audio, voice_pipeline, ws, settings.tenant_id)
 
 
 def _mp3_to_mulaw(mp3_bytes: bytes) -> bytes:
@@ -215,15 +221,23 @@ async def _send_audio(ws: WebSocket, stream_sid: str, mulaw_data: bytes) -> None
     for i in range(0, len(mulaw_data), chunk_size):
         chunk = mulaw_data[i : i + chunk_size]
         payload = base64.b64encode(chunk).decode("ascii")
-        await ws.send_text(json.dumps({
-            "event": "media",
-            "streamSid": stream_sid,
-            "media": {"payload": payload},
-        }))
+        await ws.send_text(
+            json.dumps(
+                {
+                    "event": "media",
+                    "streamSid": stream_sid,
+                    "media": {"payload": payload},
+                }
+            )
+        )
         await asyncio.sleep(0.018)
 
-    await ws.send_text(json.dumps({
-        "event": "mark",
-        "streamSid": stream_sid,
-        "mark": {"name": "response_end"},
-    }))
+    await ws.send_text(
+        json.dumps(
+            {
+                "event": "mark",
+                "streamSid": stream_sid,
+                "mark": {"name": "response_end"},
+            }
+        )
+    )

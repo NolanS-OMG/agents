@@ -42,8 +42,7 @@ async def chat(request: Request, body: ChatMessage) -> ChatResponse:
 
     if redis:
         relevant_messages = [
-            m for m in result.messages
-            if m.role in ("user", "assistant") and m.content
+            m for m in result.messages if m.role in ("user", "assistant") and m.content
         ]
         session = SessionManager(redis, llm=llm)
         await session.save_history(body.session_id, relevant_messages)

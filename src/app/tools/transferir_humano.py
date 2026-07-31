@@ -21,8 +21,7 @@ class TransferirHumano(BaseTool):
         return ToolResult(
             status=200,
             data={
-                "mensaje": "Entendido, te transfiero con un agente humano. "
-                "Te atenderán en breve.",
+                "mensaje": "Entendido, te transfiero con un agente humano. Te atenderán en breve.",
                 "motivo": motivo,
             },
         )

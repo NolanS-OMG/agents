@@ -34,10 +34,12 @@ class SessionManager:
 
         summary = await self._redis.get(summary_key)
         if summary:
-            messages.append(LLMMessage(
-                role="system",
-                content=f"[Resumen de conversación anterior]: {summary.decode() if isinstance(summary, bytes) else summary}",
-            ))
+            messages.append(
+                LLMMessage(
+                    role="system",
+                    content=f"[Resumen de conversación anterior]: {summary.decode() if isinstance(summary, bytes) else summary}",
+                )
+            )
 
         raw = await self._redis.get(key)
         if raw:
@@ -72,7 +74,11 @@ class SessionManager:
         existing_summary = await self._redis.get(summary_key)
         conversation = ""
         if existing_summary:
-            s = existing_summary.decode() if isinstance(existing_summary, bytes) else existing_summary
+            s = (
+                existing_summary.decode()
+                if isinstance(existing_summary, bytes)
+                else existing_summary
+            )
             conversation += f"[Contexto previo]: {s}\n\n"
 
         for msg in old_msgs:

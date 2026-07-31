@@ -147,7 +147,7 @@ class WhatsAppAdapter(ChannelAdapter):
                 return True, send_ms
 
             if response.status_code >= 500 and attempt < SEND_MAX_RETRIES - 1:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
                 continue
 
             break

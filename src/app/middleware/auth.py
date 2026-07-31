@@ -35,9 +35,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
         try:
-            record = await ApiKey.get_or_none(
-                key_hash=key_hash, active=True
-            ).select_related("tenant")
+            record = await ApiKey.get_or_none(key_hash=key_hash, active=True).select_related(
+                "tenant"
+            )
         except Exception:
             return JSONResponse({"detail": "Auth service unavailable"}, status_code=503)
 

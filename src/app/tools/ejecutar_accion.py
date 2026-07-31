@@ -33,8 +33,7 @@ class EjecutarAccion(BaseTool):
                 error="MISSING_REQUIRED_FIELDS",
                 categoria=categoria or "desconocida",
                 campos_faltantes=[
-                    f for f in ["categoria", "accion_solicitada"]
-                    if not kwargs.get(f)
+                    f for f in ["categoria", "accion_solicitada"] if not kwargs.get(f)
                 ],
                 mensaje_sistema="Faltan datos requeridos para ejecutar la acción.",
             )
@@ -50,7 +49,8 @@ class EjecutarAccion(BaseTool):
             )
 
         campos_faltantes = [
-            campo for campo in accion_config.get("campos_requeridos", [])
+            campo
+            for campo in accion_config.get("campos_requeridos", [])
             if campo not in parametros or not parametros[campo]
         ]
 
@@ -86,7 +86,11 @@ class EjecutarAccion(BaseTool):
 
     def schema(self) -> dict[str, Any]:
         categorias = [a["categoria"] for a in self._get_acciones()]
-        cat_desc = ", ".join(categorias) if categorias else "pedido_a_domicilio, pedido_recoger, reservacion"
+        cat_desc = (
+            ", ".join(categorias)
+            if categorias
+            else "pedido_a_domicilio, pedido_recoger, reservacion"
+        )
 
         return {
             "type": "function",

@@ -43,9 +43,9 @@ class SileroVAD:
         return self._run_inference(frame)
 
     def _run_inference(self, frame: np.ndarray) -> float:
-        input_data = np.concatenate(
-            [self._context.flatten(), frame]
-        ).reshape(1, self._num_samples + self._context_size)
+        input_data = np.concatenate([self._context.flatten(), frame]).reshape(
+            1, self._num_samples + self._context_size
+        )
 
         self._context = frame[-self._context_size :].reshape(1, self._context_size)
 

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from httpx import AsyncClient
-
 from src.app.core.config import settings
-from src.app.services.llm.base import LLMProvider
 from src.app.services.llm.openai_compatible import OpenAICompatibleProvider
 
 if TYPE_CHECKING:
+    from httpx import AsyncClient
+
     from src.app.db.models import TenantCredentials
+    from src.app.services.llm.base import LLMProvider
 
 
 def get_llm_provider(

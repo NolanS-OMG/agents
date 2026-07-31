@@ -31,7 +31,9 @@ class Transcriber:
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
-    def transcribe_pcm(self, pcm_bytes: bytes, sample_rate: int = 16000, language: str = "es") -> str:
+    def transcribe_pcm(
+        self, pcm_bytes: bytes, sample_rate: int = 16000, language: str = "es"
+    ) -> str:
         """Transcribe from raw PCM int16 bytes (for real-time pipeline)."""
         samples = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
         segments, _ = self._model.transcribe(samples, language=language, beam_size=5)

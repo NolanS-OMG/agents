@@ -69,17 +69,20 @@ def _serialize_tenant_config(config: TenantConfig) -> dict:
             }
             for d in config.docs
         ],
-        "prompts": [
-            {"estilo": p.estilo, "system_prompt": p.system_prompt}
-            for p in config.prompts
-        ],
+        "prompts": [{"estilo": p.estilo, "system_prompt": p.system_prompt} for p in config.prompts],
     }
 
 
 class _CachedDoc:
     __slots__ = (
-        "slug", "doc_type", "title", "description",
-        "body", "campos_requeridos", "campos_opcionales", "confirmacion_requerida",
+        "slug",
+        "doc_type",
+        "title",
+        "description",
+        "body",
+        "campos_requeridos",
+        "campos_opcionales",
+        "confirmacion_requerida",
     )
 
     def __init__(self, **kw: Any) -> None:

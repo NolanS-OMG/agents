@@ -143,25 +143,29 @@ class TenantConfig:
                 campos_req = self._extract_table_column(doc.body, "Campos requeridos", 0)
                 campos_opt = self._extract_table_column(doc.body, "Campos opcionales", 0)
                 categoria = self._slug_from_title(doc.title)
-                acciones.append({
-                    "categoria": categoria,
-                    "nombre": doc.title,
-                    "campos_requeridos": campos_req,
-                    "campos_opcionales": campos_opt,
-                    "confirmacion_requerida": "confirmación" in doc.body.lower(),
-                })
+                acciones.append(
+                    {
+                        "categoria": categoria,
+                        "nombre": doc.title,
+                        "campos_requeridos": campos_req,
+                        "campos_opcionales": campos_opt,
+                        "confirmacion_requerida": "confirmación" in doc.body.lower(),
+                    }
+                )
         else:
             for doc in self.docs:
                 if doc.doc_type != "accion":
                     continue
                 categoria = self._slug_from_title(doc.title)
-                acciones.append({
-                    "categoria": categoria,
-                    "nombre": doc.title,
-                    "campos_requeridos": doc.campos_requeridos,
-                    "campos_opcionales": doc.campos_opcionales,
-                    "confirmacion_requerida": doc.confirmacion_requerida,
-                })
+                acciones.append(
+                    {
+                        "categoria": categoria,
+                        "nombre": doc.title,
+                        "campos_requeridos": doc.campos_requeridos,
+                        "campos_opcionales": doc.campos_opcionales,
+                        "confirmacion_requerida": doc.confirmacion_requerida,
+                    }
+                )
         return acciones
 
     def _find_doc_legacy(self, type_: str) -> OKFDocument | None:

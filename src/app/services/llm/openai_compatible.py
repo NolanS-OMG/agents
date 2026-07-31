@@ -55,7 +55,7 @@ class OpenAICompatibleProvider(LLMProvider):
 
             if response.status_code == 429:
                 retry_count += 1
-                wait = 2 ** attempt + 1
+                wait = 2**attempt + 1
                 await asyncio.sleep(wait)
                 continue
 
@@ -89,8 +89,7 @@ class OpenAICompatibleProvider(LLMProvider):
 
         completion_tokens = usage.get("completion_tokens", 0)
         tokens_per_second = (
-            completion_tokens / (latency_ms / 1000)
-            if latency_ms > 0 and completion_tokens else 0.0
+            completion_tokens / (latency_ms / 1000) if latency_ms > 0 and completion_tokens else 0.0
         )
 
         cost_usd = usage.get("cost", 0.0)
@@ -106,7 +105,8 @@ class OpenAICompatibleProvider(LLMProvider):
         completion_details = usage.get("completion_tokens_details", {})
         reasoning_tokens = (
             completion_details.get("reasoning_tokens", 0)
-            if isinstance(completion_details, dict) else 0
+            if isinstance(completion_details, dict)
+            else 0
         )
 
         return LLMResponse(
