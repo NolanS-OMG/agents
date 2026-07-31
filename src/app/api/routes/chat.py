@@ -8,7 +8,7 @@ from src.app.services.session import SessionManager
 from src.app.services.tenant_loader import load_tenant_async
 from src.app.tools.registry import get_tools_for_tenant
 
-router = APIRouter(tags=["chat"])
+router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 
 class ChatMessage(BaseModel):

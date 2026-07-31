@@ -20,7 +20,7 @@ app.add_middleware(AuthMiddleware)
 app.add_middleware(CorrelationMiddleware)
 
 app.include_router(health.router)
-app.include_router(chat.router, prefix="/api/v1")
+app.include_router(chat.router)
 app.include_router(converse.router)
 app.include_router(knowledge.router)
 app.include_router(prompts.router)
