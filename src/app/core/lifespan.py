@@ -31,12 +31,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         app.state.redis = None
         logger.warning("Redis no disponible, funcionando sin historial")
 
-    try:
-        await Tortoise.init(config=TORTOISE_ORM)
-        await Tortoise.generate_schemas()
-        logger.info("PostgreSQL conectado")
-    except Exception as e:
-        logger.warning(f"PostgreSQL no disponible: {e}")
+    if settings.database_url:
+        try:
+            await Tortoise.init(config=TORTOISE_ORM)
+            logger.info("PostgreSQL conectado")
+        except Exception as e:
+            logger.warning(f"PostgreSQL no disponible: {e}")
+    else:
+        logger.warning("DATABASE_URL not set, running without database")
 
     app.state.voice_pipeline = None
     if settings.voice_enabled:

@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     twilio_phone_number: str = Field(default="")
     vad_silence_ms: int = Field(default=700)
 
-    database_url: str = Field(default="postgres://agente:dev_password_123@localhost:5434/agente_ia")
+    database_url: str = Field(default="")
     credential_encryption_key: str = Field(default="")
 
     groq_api_key: str = Field(default="")
