@@ -5,7 +5,7 @@ from src.app.core.config import settings
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
-from src.app.services.tenant import load_tenant
+from src.app.services.tenant_loader import load_tenant_async
 from src.app.tools.registry import get_tools_for_tenant
 
 router = APIRouter(tags=["chat"])
@@ -26,9 +26,9 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: Request, body: ChatMessage) -> ChatResponse:
     http_client = request.app.state.http_client
-    redis = request.app.state.redis
+    redis = getattr(request.app.state, "redis", None)
 
-    tenant = load_tenant(settings.tenant_id)
+    tenant = await load_tenant_async(settings.tenant_id, redis)
     llm = get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
