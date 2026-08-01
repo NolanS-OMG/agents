@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cleanup() {
+    echo ""
+    echo ">> Deteniendo servicios..."
+    docker compose down
+    exit 0
+}
+
+trap cleanup INT TERM
+
 echo "=== Agente IA - Setup ==="
 
 # Check prerequisites
