@@ -1,21 +1,31 @@
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Request
 
+from src.app.core.config import settings
+
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health")
+@router.get("/api/v1/health")
 async def health_check(request: Request) -> dict[str, str]:
     redis = request.app.state.redis
-    redis_status = "disconnected"
+    status = "healthy"
+
     if redis:
         try:
             await redis.ping()
-            redis_status = "connected"
         except Exception:
-            redis_status = "error"
-    return {"status": "ok", "redis": redis_status}
+            status = "degraded"
+    else:
+        status = "degraded"
+
+    return {
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": "1.0.0",
+    }
 
 
 @router.get("/metrics")
