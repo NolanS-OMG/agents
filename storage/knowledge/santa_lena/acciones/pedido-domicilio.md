@@ -8,14 +8,29 @@ tags:
 - pedido
 - domicilio
 status: stable
-campos_requeridos:
-- nombre_cliente
-- telefono
-- direccion_entrega
-- items_pedido
-campos_opcionales:
-- notas_especiales
-- metodo_pago
-confirmacion_requerida: true
+campos_requeridos: []
+campos_opcionales: []
+confirmacion_requerida: false
 ---
 
+# Pedido a Domicilio
+
+## Campos requeridos
+
+| Campo | Descripción |
+|-------|-------------|
+| nombre_cliente | Nombre de quien recibe |
+| telefono | Teléfono de contacto |
+| direccion_entrega | Dirección completa de entrega |
+| items_pedido | Lista de platillos con cantidades |
+
+## Campos opcionales
+
+| Campo | Descripción |
+|-------|-------------|
+| notas_especiales | Alergias, sustituciones, indicaciones de entrega |
+| metodo_pago | Efectivo o tarjeta |
+
+## Confirmación
+
+Se requiere confirmación explícita del cliente antes de procesar.

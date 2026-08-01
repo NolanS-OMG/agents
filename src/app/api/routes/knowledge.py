@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,9 @@ from src.app.utils.file_parsers import (
     write_markdown_with_frontmatter,
 )
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+logger = logging.getLogger(__name__)
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 STORAGE_DIR = PROJECT_ROOT / "storage" / "knowledge"
 
 router = APIRouter(prefix="/api/v1/knowledge", tags=["knowledge"])
@@ -56,12 +59,15 @@ class DocResponse(BaseModel):
 
 @router.post("", response_model=DocResponse, status_code=201)
 async def create_document(request: Request, tenant: CurrentTenant, body: CreateDocRequest) -> Any:
+    logger.info(f"Creating document: tenant={tenant.tenant_id}, slug={body.slug}")
     existing = await KnowledgeDocument.get_or_none(tenant_id=tenant.tenant_id, slug=body.slug)
     if existing:
         raise HTTPException(409, f"Document '{body.slug}' already exists")
 
     file_path = STORAGE_DIR / tenant.tenant_id / f"{body.slug}.md"
+    logger.info(f"File path: {file_path}")
     file_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Directory created/verified: {file_path.parent}")
 
     frontmatter = {
         "slug": body.slug,
@@ -77,9 +83,12 @@ async def create_document(request: Request, tenant: CurrentTenant, body: CreateD
         frontmatter["confirmacion_requerida"] = body.confirmacion_requerida
 
     content = write_markdown_with_frontmatter(frontmatter, body.body)
+    logger.info(f"Writing {len(content)} chars to {file_path}")
     file_path.write_text(content, encoding="utf-8")
+    logger.info(f"File written successfully")
     file_hash = calculate_file_hash(file_path)
     relative_path = str(file_path.relative_to(PROJECT_ROOT))
+    logger.info(f"Relative path: {relative_path}, hash: {file_hash[:16]}...")
 
     doc = await KnowledgeDocument.create(
         tenant_id=tenant.tenant_id,

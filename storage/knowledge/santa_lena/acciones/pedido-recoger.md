@@ -8,13 +8,28 @@ tags:
 - pedido
 - recoger
 status: stable
-campos_requeridos:
-- nombre_cliente
-- telefono
-- items_pedido
-campos_opcionales:
-- hora_recoger
-- notas_especiales
-confirmacion_requerida: true
+campos_requeridos: []
+campos_opcionales: []
+confirmacion_requerida: false
 ---
 
+# Pedido para Recoger
+
+## Campos requeridos
+
+| Campo | Descripción |
+|-------|-------------|
+| nombre_cliente | Nombre de quien recoge |
+| telefono | Teléfono de contacto |
+| items_pedido | Lista de platillos con cantidades |
+
+## Campos opcionales
+
+| Campo | Descripción |
+|-------|-------------|
+| hora_recoger | Hora aproximada de llegada |
+| notas_especiales | Alergias, sustituciones |
+
+## Confirmación
+
+Se requiere confirmación explícita del cliente antes de procesar.
