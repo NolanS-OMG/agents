@@ -27,7 +27,7 @@ status: stable
 
 - **Portfolio Web:** [nolanashcraft.netlify.app](https://nolanashcraft.netlify.app)
 - **LinkedIn:** [linkedin.com/in/nolan-ashcraft](https://linkedin.com/in/nolan-ashcraft)
-- **GitHub:** (Disponible bajo solicitud)
+- **GitHub:** [github.com/NolanS-OMG](https://github.com/NolanS-OMG/)
 
 ## Disponibilidad
 

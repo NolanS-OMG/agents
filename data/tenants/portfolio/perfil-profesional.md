@@ -17,14 +17,14 @@ Santiago, Nuevo León, México
 
 Software Developer y graduado en Física con más de 4 años de experiencia construyendo ecosistemas impulsados por IA y aplicaciones de alto rendimiento. Experto en sistemas de IA multi-agente y orquestadores de tareas autónomas.
 
-**Founding Engineer en Hola ELO**, escalando la plataforma desde el Día 0 hasta más de 400 usuarios pagos activos. Fundación analítica sólida en física aplicada a la optimización de sistemas complejos y arquitecturas full-stack escalables.
+**Founding Engineer en Hola ELO**, escalando la plataforma desde el Día 0 hasta más de 500 usuarios pagos activos. Fundación analítica sólida en física aplicada a la optimización de sistemas complejos y arquitecturas full-stack escalables.
 
 ## Experiencia Destacada
 
 ### Lead Software Developer (Founding Engineer) - Hola ELO
 **2024 – Presente | Monterrey, MX**
 
-- Desarrollé ELO HUB desde cero, escalando a 400+ usuarios pagos activos con infraestructura optimizada en AWS
+- Desarrollé ELO HUB desde cero, escalando a más de 500 usuarios pagos activos con infraestructura optimizada en AWS
 - Diseñé un **Asistente de IA Multi-Agente** para gestión clínica, usando RAG para asesoría financiera, agendamiento automatizado y generación inteligente de notas clínicas
 - Creé un **Orquestador de Tareas con IA** que permite al personal no técnico activar correcciones de bugs y operaciones mediante lenguaje natural, reduciendo la carga manual de ingeniería en un 40%
 - Construí un **Sistema de Transcripción con IA** para sesiones, usando análisis semántico para entregar resúmenes automatizados y recomendaciones terapéuticas basadas en datos
