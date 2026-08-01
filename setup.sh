@@ -44,18 +44,7 @@ fi
 
 # Apply database schema
 echo ">> Aplicando schema de base de datos..."
-uv run python -c "
-import asyncio
-from tortoise import Tortoise
-from src.app.core.config import settings
-
-async def init():
-    await Tortoise.init(db_url=settings.database_url, modules={'models': ['src.app.db.models']})
-    await Tortoise.generate_schemas(safe=True)
-    await Tortoise.close_connections()
-
-asyncio.run(init())
-"
+uv run python scripts/init_db.py
 echo "   Schema OK"
 
 # Start FastAPI with uvicorn
