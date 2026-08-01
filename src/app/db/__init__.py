@@ -1,7 +1,6 @@
-from src.app.core.config import settings
-
-
 def get_tortoise_config() -> dict:
+    from src.app.core.config import settings
+
     return {
         "connections": {"default": settings.database_url},
         "apps": {
@@ -11,6 +10,3 @@ def get_tortoise_config() -> dict:
             }
         },
     }
-
-
-TORTOISE_ORM = get_tortoise_config()

@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 from tortoise import Tortoise
 
 from src.app.core.config import settings
-from src.app.db import TORTOISE_ORM
+from src.app.db import get_tortoise_config
 from src.app.services.analytics import AnalyticsStore
 from src.app.services.metrics import MetricsCollector
 
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     if settings.database_url:
         try:
-            await Tortoise.init(config=TORTOISE_ORM)
+            await Tortoise.init(config=get_tortoise_config())
             logger.info("PostgreSQL conectado")
         except Exception as e:
             logger.warning(f"PostgreSQL no disponible: {e}")
