@@ -20,6 +20,7 @@ class ChatMessage(BaseModel):
     )
     message: str = Field(min_length=1, max_length=4096)
     channel: str = Field(default="api")
+    language: str = Field(default="en", pattern=r"^(en|es)$")
 
 
 class ChatResponse(BaseModel):
@@ -55,7 +56,24 @@ async def chat(
     tenant = await load_tenant_async(tenant_ctx.tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant_ctx.tenant_id)
     tools = get_tools_for_tenant(tenant)
-    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
+
+    tenant_prompt = tenant.get_prompt(settings.estilo)
+    doc_list = "\n".join(
+        [
+            f"  - {doc.slug}: {doc.title} — {doc.description}"
+            for doc in tenant.docs
+            if doc.description
+        ]
+    )
+    if doc_list:
+        tenant_prompt += f"\n\nDOCUMENTOS DISPONIBLES (usa buscar_base_conocimiento_extensa con slug):\n{doc_list}"
+
+    if body.language == "es":
+        tenant_prompt += "\n\nIMPORTANTE: Responde SIEMPRE en español."
+    else:
+        tenant_prompt += "\n\nIMPORTANT: Always respond in English."
+
+    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_prompt)
 
     metadata = {
         "ip_address": request.headers.get("x-forwarded-for", "").split(",")[0].strip()
@@ -77,7 +95,9 @@ async def chat(
 
     if redis:
         relevant_messages = [
-            m for m in result.messages if m.role in ("user", "assistant") and m.content
+            m
+            for m in result.messages
+            if m.role == "user" or (m.role == "assistant" and m.content)
         ]
         session = SessionManager(redis, llm=llm, tenant_id=tenant_ctx.tenant_id)
         await session.save_history(
