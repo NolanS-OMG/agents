@@ -24,7 +24,11 @@ fi
 
 # Install dependencies
 echo ">> Instalando dependencias con uv..."
-uv sync
+if grep -q "^VOICE_ENABLED=true" .env 2>/dev/null; then
+    uv sync --extra voice
+else
+    uv sync
+fi
 
 # Start Redis via Docker if not already running
 if docker ps --format '{{.Names}}' | grep -q "prototipo-agente-redis"; then
