@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.app.api.routes import (
     analytics,
@@ -26,6 +27,17 @@ app = FastAPI(
     redoc_url=None,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://nolanashcraft.netlify.app",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key"],
+)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(CorrelationMiddleware)
 
