@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 EXCLUDED_PREFIXES = (
     "/health",
+    "/api/v1/health",
     "/docs",
     "/openapi.json",
     "/webhook/whatsapp",
