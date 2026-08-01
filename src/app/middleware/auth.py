@@ -30,7 +30,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         api_key = request.headers.get("X-API-Key", "")
         if not api_key:
-            return JSONResponse({"detail": "API key required"}, status_code=401)
+            return JSONResponse(
+                {"error": "missing_api_key", "message": "API key required"}, status_code=401
+            )
 
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
@@ -40,10 +42,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
         except Exception as e:
             logger.error(f"Auth DB query failed: {e}", exc_info=True)
-            return JSONResponse({"detail": "Auth service unavailable"}, status_code=503)
+            return JSONResponse(
+                {"error": "service_unavailable", "message": "Auth service unavailable"},
+                status_code=503,
+            )
 
         if not record or not record.tenant.active:
-            return JSONResponse({"detail": "Invalid API key"}, status_code=401)
+            return JSONResponse(
+                {"error": "invalid_api_key", "message": "Invalid API key"}, status_code=401
+            )
 
         request.state.tenant_id = record.tenant.id
         request.state.tenant_name = record.tenant.name
