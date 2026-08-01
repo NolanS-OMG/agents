@@ -38,7 +38,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             record = await ApiKey.get_or_none(key_hash=key_hash, active=True).select_related(
                 "tenant"
             )
-        except Exception:
+        except Exception as e:
+            logger.error(f"Auth DB query failed: {e}", exc_info=True)
             return JSONResponse({"detail": "Auth service unavailable"}, status_code=503)
 
         if not record or not record.tenant.active:
