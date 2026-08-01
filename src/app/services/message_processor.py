@@ -76,7 +76,7 @@ async def process_and_reply(
 ) -> AgentResult | None:
     """Run agent loop and send reply. Returns AgentResult or None on error."""
     tenant = await load_tenant_async(tenant_id, redis)
-    llm = get_llm_provider(http_client)
+    llm = await get_llm_provider(http_client, tenant_id=tenant_id)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
         llm=llm,

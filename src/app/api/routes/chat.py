@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Path, Request, Response
 from pydantic import BaseModel, Field
 
+from src.app.api.deps import CurrentTenant
 from src.app.core.config import settings
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
@@ -24,12 +25,12 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: Request, body: ChatMessage) -> ChatResponse:
+async def chat(request: Request, body: ChatMessage, tenant_ctx: CurrentTenant) -> ChatResponse:
     http_client = request.app.state.http_client
     redis = getattr(request.app.state, "redis", None)
 
-    tenant = await load_tenant_async(settings.tenant_id, redis)
-    llm = get_llm_provider(http_client)
+    tenant = await load_tenant_async(tenant_ctx.tenant_id, redis)
+    llm = await get_llm_provider(http_client, tenant_id=tenant_ctx.tenant_id)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 

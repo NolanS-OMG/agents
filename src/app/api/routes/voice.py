@@ -163,7 +163,7 @@ async def _process_and_synthesize_tenant(
     http_client = ws.app.state.http_client
     redis = ws.app.state.redis
     tenant = await load_tenant_async(tenant_id, redis)
-    llm = get_llm_provider(http_client)
+    llm = await get_llm_provider(http_client, tenant_id=tenant_id)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
         llm=llm,

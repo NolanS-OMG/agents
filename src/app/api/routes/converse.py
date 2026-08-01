@@ -99,7 +99,7 @@ async def converse(
         transcription = text
 
     tenant_config = await load_tenant_async(tenant.tenant_id, redis)
-    llm = get_llm_provider(http_client)
+    llm = await get_llm_provider(http_client, tenant_id=tenant.tenant_id)
     tools = get_tools_for_tenant(tenant_config)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_config.get_prompt(estilo))
 

@@ -92,6 +92,13 @@ class EjecutarAccion(BaseTool):
             else "pedido_a_domicilio, pedido_recoger, reservacion"
         )
 
+        categoria_prop = {
+            "type": "string",
+            "description": f"Tipo de acción. Valores exactos: {cat_desc}",
+        }
+        if categorias:
+            categoria_prop["enum"] = categorias
+
         return {
             "type": "function",
             "function": {
@@ -100,11 +107,7 @@ class EjecutarAccion(BaseTool):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "categoria": {
-                            "type": "string",
-                            "enum": categorias or None,
-                            "description": f"Tipo de acción. Valores exactos: {cat_desc}",
-                        },
+                        "categoria": categoria_prop,
                         "accion_solicitada": {
                             "type": "string",
                             "description": "Descripción de lo que el cliente quiere hacer",

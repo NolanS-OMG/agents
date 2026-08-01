@@ -32,15 +32,23 @@ PROVIDER_CONFIGS = {
 }
 
 
-def get_llm_provider(
+async def get_llm_provider(
     http_client: AsyncClient,
+    tenant_id: str | None = None,
     tenant_creds: TenantCredentials | None = None,
     decrypted_api_key: str = "",
 ) -> LLMProvider:
     provider = settings.llm_provider
-    api_key = decrypted_api_key or settings.llm_api_key
     model = settings.llm_model
     base_url = settings.llm_base_url
+    api_key = decrypted_api_key or settings.llm_api_key
+
+    if tenant_id:
+        from src.app.db.models import Tenant
+        tenant = await Tenant.get_or_none(id=tenant_id)
+        if tenant and tenant.config:
+            provider = tenant.config.get("llm_provider", provider)
+            model = tenant.config.get("llm_model", model)
 
     if tenant_creds:
         if decrypted_api_key:
@@ -53,6 +61,16 @@ def get_llm_provider(
         base_url = config["base_url"]
         if not model:
             model = config["default_model"]
+
+    if not decrypted_api_key:
+        if provider == "openai":
+            api_key = settings.openai_api_key
+        elif provider == "deepseek":
+            api_key = settings.deepseek_api_key
+        elif provider == "openrouter" and not api_key:
+            api_key = settings.llm_api_key
+        elif provider == "groq" and not api_key:
+            api_key = settings.llm_api_key
 
     if not base_url:
         base_url = "https://openrouter.ai/api/v1"
