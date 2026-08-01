@@ -111,6 +111,25 @@ async def chat(
     )
 
 
+@router.get("/chat/welcome")
+async def get_welcome_message(tenant_ctx: CurrentTenant) -> dict:
+    if tenant_ctx.tenant_id == "portfolio":
+        return {
+            "message": "👋 Hi! I'm Nolan's AI assistant. I can help you learn about his experience with AI systems, projects, tech stack, and more. What would you like to know?",
+            "suggestions": [
+                "Tell me about his AI experience",
+                "What projects has he built?",
+                "Show me his tech stack",
+                "How can I contact him?",
+            ],
+        }
+
+    return {
+        "message": "👋 Hello! How can I help you today?",
+        "suggestions": [],
+    }
+
+
 @router.post("/sessions/{session_id}/release")
 async def release_session(
     request: Request,
