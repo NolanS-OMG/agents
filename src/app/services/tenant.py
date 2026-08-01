@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import unicodedata
 from pathlib import Path
@@ -113,10 +114,14 @@ class TenantConfig:
         else:
             negocio_doc = next((d for d in self.docs if d.doc_type == "negocio"), None)
             if negocio_doc:
-                parts.append(negocio_doc.body)
+                content = self.read_doc(negocio_doc.slug)
+                if content:
+                    parts.append(content)
             promo_doc = next((d for d in self.docs if d.doc_type == "promociones"), None)
             if promo_doc:
-                parts.append(promo_doc.body)
+                content = self.read_doc(promo_doc.slug)
+                if content:
+                    parts.append(content)
             parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
             prompt = next((p for p in self.prompts if p.estilo == estilo), None)
             if prompt:
@@ -131,8 +136,28 @@ class TenantConfig:
         slug = ruta.removesuffix(".md")
         for doc in self.docs:
             if doc.slug == slug:
-                return doc.body
+                file_path = Path(doc.file_path)
+                if not file_path.exists():
+                    logger.error(f"File not found: {file_path}")
+                    return None
+                return self._read_file_content(file_path, doc.file_format)
         return None
+
+    def _read_file_content(self, path: Path, format: str) -> str:
+        if format == "md":
+            raw = path.read_text(encoding="utf-8")
+            if raw.startswith("---"):
+                parts = raw.split("---", 2)
+                if len(parts) >= 3:
+                    return parts[2].strip()
+            return raw
+        if format == "json":
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return str(data.get("body", ""))
+        if format == "yaml":
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            return str(data.get("body", ""))
+        return ""
 
     def get_acciones_config(self) -> list[dict[str, Any]]:
         acciones: list[dict[str, Any]] = []
