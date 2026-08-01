@@ -161,3 +161,42 @@ class UsageDaily(Model):
     class Meta:
         table = "usage_daily"
         unique_together = [("tenant_id", "date")]
+
+
+class ChatSession(Model):
+    id = fields.UUIDField(primary_key=True)
+    tenant = fields.ForeignKeyField("models.Tenant", related_name="chat_sessions")
+    session_id = fields.CharField(max_length=128, unique=True, index=True)
+    ip_address = fields.CharField(max_length=45, null=True)
+    user_agent = fields.TextField(null=True)
+    referrer = fields.CharField(max_length=500, null=True)
+    country = fields.CharField(max_length=2, null=True)
+    region = fields.CharField(max_length=100, null=True)
+    city = fields.CharField(max_length=100, null=True)
+    device_type = fields.CharField(max_length=20, null=True)
+    browser = fields.CharField(max_length=50, null=True)
+    os = fields.CharField(max_length=50, null=True)
+    screen_resolution = fields.CharField(max_length=20, null=True)
+    language = fields.CharField(max_length=10, null=True)
+    timezone = fields.CharField(max_length=50, null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+    last_active = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "chat_sessions"
+
+
+class ChatMessage(Model):
+    id = fields.BigIntField(primary_key=True)
+    session = fields.ForeignKeyField("models.ChatSession", related_name="messages")
+    role = fields.CharField(max_length=20)
+    content = fields.TextField()
+    model_used = fields.CharField(max_length=100, null=True)
+    tokens_used = fields.IntField(null=True)
+    cost_usd = fields.DecimalField(max_digits=10, decimal_places=6, null=True)
+    tool_calls = fields.JSONField(null=True)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = "chat_messages"
+        ordering = ["created_at"]

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Path, Request, Response
+from uuid import uuid4
+
+from fastapi import APIRouter, Cookie, Path, Request, Response
 from pydantic import BaseModel, Field
 
 from src.app.api.deps import CurrentTenant
@@ -13,7 +15,9 @@ router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 
 class ChatMessage(BaseModel):
-    session_id: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$")
+    session_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$"
+    )
     message: str = Field(min_length=1, max_length=4096)
     channel: str = Field(default="api")
 
@@ -25,19 +29,49 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: Request, body: ChatMessage, tenant_ctx: CurrentTenant) -> ChatResponse:
+async def chat(
+    request: Request,
+    response: Response,
+    body: ChatMessage,
+    tenant_ctx: CurrentTenant,
+    session_id_cookie: str | None = Cookie(default=None, alias="session_id"),
+) -> ChatResponse:
     http_client = request.app.state.http_client
     redis = getattr(request.app.state, "redis", None)
+
+    session_id = body.session_id or session_id_cookie or str(uuid4())
+    is_new_session = not (body.session_id or session_id_cookie)
+
+    if is_new_session:
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=request.url.scheme == "https",
+            samesite="lax",
+            max_age=31536000,
+        )
 
     tenant = await load_tenant_async(tenant_ctx.tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant_ctx.tenant_id)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant.get_prompt(settings.estilo))
 
+    metadata = {
+        "ip_address": request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or request.headers.get("x-real-ip", "")
+        or request.client.host
+        if request.client
+        else None,
+        "user_agent": request.headers.get("user-agent"),
+        "referrer": request.headers.get("referer"),
+        "language": request.headers.get("accept-language", "").split(",")[0],
+    }
+
     history = []
     if redis:
-        session = SessionManager(redis, llm=llm)
-        history = await session.get_history(body.session_id)
+        session = SessionManager(redis, llm=llm, tenant_id=tenant_ctx.tenant_id)
+        history = await session.get_history(session_id)
 
     result = await agent.run(user_message=body.message, history=history)
 
@@ -45,11 +79,13 @@ async def chat(request: Request, body: ChatMessage, tenant_ctx: CurrentTenant) -
         relevant_messages = [
             m for m in result.messages if m.role in ("user", "assistant") and m.content
         ]
-        session = SessionManager(redis, llm=llm)
-        await session.save_history(body.session_id, relevant_messages)
+        session = SessionManager(redis, llm=llm, tenant_id=tenant_ctx.tenant_id)
+        await session.save_history(
+            session_id, relevant_messages, model_used=llm._model, metadata=metadata
+        )
 
     return ChatResponse(
-        session_id=body.session_id,
+        session_id=session_id,
         response=result.response,
         tool_used=result.tool_used,
     )

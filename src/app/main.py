@@ -1,6 +1,16 @@
 from fastapi import FastAPI
 
-from src.app.api.routes import chat, converse, health, knowledge, prompts, usage, voice, webhook
+from src.app.api.routes import (
+    analytics,
+    chat,
+    converse,
+    health,
+    knowledge,
+    prompts,
+    usage,
+    voice,
+    webhook,
+)
 from src.app.core.config import settings
 from src.app.core.lifespan import lifespan
 from src.app.core.logging_config import setup_logging
@@ -27,3 +37,4 @@ app.include_router(prompts.router)
 app.include_router(usage.router)
 app.include_router(webhook.router)
 app.include_router(voice.router)
+app.include_router(analytics.router)
