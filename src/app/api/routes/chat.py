@@ -160,6 +160,22 @@ async def get_session_history(
     }
 
 
+@router.delete("/chat/session/{session_id}")
+async def delete_session(
+    request: Request,
+    tenant_ctx: CurrentTenant,
+    session_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$"),
+) -> Response:
+    redis = request.app.state.redis
+    if redis:
+        await redis.delete(
+            f"session:{session_id}:history",
+            f"session:{session_id}:summary",
+            f"session:{session_id}:needs_human",
+        )
+    return Response(status_code=204)
+
+
 @router.post("/sessions/{session_id}/release")
 async def release_session(
     request: Request,
