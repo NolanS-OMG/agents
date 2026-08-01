@@ -6,7 +6,10 @@ from pydantic import BaseModel
 
 class LLMMessage(BaseModel):
     role: str
-    content: str
+    content: str | None = None
+    tool_call_id: str | None = None
+    name: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
 
 
 class LLMResponse(BaseModel):

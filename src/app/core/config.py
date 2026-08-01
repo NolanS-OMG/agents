@@ -31,9 +31,11 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="openrouter")
     llm_api_key: str = Field(default="")
     llm_model: str = Field(default="meta-llama/llama-3.3-70b-instruct:free")
-    llm_base_url: str = Field(default="https://openrouter.ai/api/v1")
+    llm_base_url: str = Field(default="")
     llm_timeout: int = Field(default=30)
     llm_max_retries: int = Field(default=2)
+
+    deepseek_api_key: str = Field(default="")
 
     voice_enabled: bool = Field(default=False)
     whisper_model: str = Field(default="large-v3")

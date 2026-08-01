@@ -107,7 +107,8 @@ class AgentRouter:
             messages.append(
                 LLMMessage(
                     role="assistant",
-                    content=json.dumps({"tool_calls": [tool_call]}),
+                    content=None,
+                    tool_calls=[tool_call],
                 )
             )
 
@@ -130,13 +131,9 @@ class AgentRouter:
             messages.append(
                 LLMMessage(
                     role="tool",
-                    content=json.dumps(
-                        {
-                            "tool_call_id": call_id,
-                            "name": tool_name,
-                            "result": tool_result.model_dump(),
-                        }
-                    ),
+                    tool_call_id=call_id,
+                    name=tool_name,
+                    content=json.dumps(tool_result.model_dump()),
                 )
             )
 

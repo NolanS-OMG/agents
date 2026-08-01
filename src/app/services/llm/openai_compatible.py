@@ -1,10 +1,14 @@
 import asyncio
+import json
+import logging
 import time
 from typing import Any
 
 from httpx import AsyncClient, HTTPStatusError
 
 from src.app.services.llm.base import LLMMessage, LLMProvider, LLMResponse
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAICompatibleProvider(LLMProvider):
@@ -30,7 +34,7 @@ class OpenAICompatibleProvider(LLMProvider):
     ) -> LLMResponse:
         payload: dict[str, Any] = {
             "model": self._model,
-            "messages": [m.model_dump() for m in messages],
+            "messages": [m.model_dump(exclude_none=True) for m in messages],
             "temperature": temperature,
         }
         if tools:
@@ -39,9 +43,11 @@ class OpenAICompatibleProvider(LLMProvider):
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/agente-ia",
-            "X-Title": "Agente IA",
         }
+
+        if "openrouter" in self._base_url:
+            headers["HTTP-Referer"] = "https://github.com/agente-ia"
+            headers["X-Title"] = "Agente IA"
 
         retry_count = 0
         for attempt in range(self._max_retries):
@@ -58,6 +64,10 @@ class OpenAICompatibleProvider(LLMProvider):
                 wait = 2**attempt + 1
                 await asyncio.sleep(wait)
                 continue
+
+            if response.status_code >= 400:
+                logger.error(f"LLM API error {response.status_code}: {response.text}")
+                logger.error(f"Payload was: {json.dumps(payload, indent=2)}")
 
             response.raise_for_status()
             return self._parse_response(response, retry_count, latency_ms)
