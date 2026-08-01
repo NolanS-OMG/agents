@@ -1,10 +1,11 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Cookie, Path, Request, Response
+from fastapi import APIRouter, Cookie, HTTPException, Path, Request, Response
 from pydantic import BaseModel, Field
 
 from src.app.api.deps import CurrentTenant
 from src.app.core.config import settings
+from src.app.middleware.rate_limit import check_session_rate_limit
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
@@ -42,6 +43,18 @@ async def chat(
 
     session_id = body.session_id or session_id_cookie or str(uuid4())
     is_new_session = not (body.session_id or session_id_cookie)
+
+    if redis:
+        allowed, retry_after = await check_session_rate_limit(redis, session_id)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limit_exceeded",
+                    "message": "Too many requests. Please wait a moment.",
+                    "retry_after_seconds": retry_after,
+                },
+            )
 
     if is_new_session:
         response.set_cookie(
