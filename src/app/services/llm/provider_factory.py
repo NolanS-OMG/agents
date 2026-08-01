@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 
 
 PROVIDER_CONFIGS = {
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "default_model": "gpt-4o-mini",
+    },
     "openrouter": {
         "base_url": "https://openrouter.ai/api/v1",
         "default_model": "meta-llama/llama-3.3-70b-instruct:free",

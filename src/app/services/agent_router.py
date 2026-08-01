@@ -1,10 +1,13 @@
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from src.app.services.llm.base import LLMMessage, LLMProvider, LLMResponse
 from src.app.tools.base import BaseTool, ToolError, ToolResult
+
+logger = logging.getLogger(__name__)
 
 BASE_SYSTEM_PROMPT = """Eres un asistente virtual de atención al cliente. Tu trabajo es ayudar al usuario de forma clara, amable y eficiente.
 
@@ -112,9 +115,11 @@ class AgentRouter:
                 )
             )
 
+            logger.info(f"Executing tool: {tool_name} with args: {tool_args}")
             t0 = time.time()
             tool_result = await self._execute_tool(tool_name, tool_args)
             total_tool_ms += int((time.time() - t0) * 1000)
+            logger.info(f"Tool result: status={getattr(tool_result, 'status', 'N/A')}, error={getattr(tool_result, 'error', None)}")
 
             if tool_name == "transferir_a_humano" and isinstance(tool_result, ToolResult):
                 return self._build_result(

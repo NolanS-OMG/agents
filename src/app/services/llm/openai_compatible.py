@@ -50,6 +50,10 @@ class OpenAICompatibleProvider(LLMProvider):
             headers["X-Title"] = "Agente IA"
 
         retry_count = 0
+        logger.info(f"LLM request to {self._base_url} with model {self._model}")
+        logger.info(f"Tools: {len(tools) if tools else 0} tools provided")
+        logger.info(f"Messages: {len(messages)} messages")
+
         for attempt in range(self._max_retries):
             t0 = time.time()
             response = await self._client.post(
@@ -70,7 +74,9 @@ class OpenAICompatibleProvider(LLMProvider):
                 logger.error(f"Payload was: {json.dumps(payload, indent=2)}")
 
             response.raise_for_status()
-            return self._parse_response(response, retry_count, latency_ms)
+            result = self._parse_response(response, retry_count, latency_ms)
+            logger.info(f"LLM response: finish_reason={result.finish_reason}, tool_calls={len(result.tool_calls)}")
+            return result
 
         raise HTTPStatusError(
             "Rate limited after retries",

@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     llm_max_retries: int = Field(default=2)
 
     deepseek_api_key: str = Field(default="")
+    openai_api_key: str = Field(default="")
 
     voice_enabled: bool = Field(default=False)
     whisper_model: str = Field(default="large-v3")
