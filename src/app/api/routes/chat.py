@@ -130,6 +130,36 @@ async def get_welcome_message(tenant_ctx: CurrentTenant) -> dict:
     }
 
 
+@router.get("/chat/session/{session_id}/history")
+async def get_session_history(
+    request: Request,
+    tenant_ctx: CurrentTenant,
+    session_id: str = Path(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$"),
+) -> dict:
+    redis = request.app.state.redis
+    if not redis:
+        return {"session_id": session_id, "messages": []}
+
+    llm = await get_llm_provider(request.app.state.http_client, tenant_id=tenant_ctx.tenant_id)
+    session = SessionManager(redis, llm=llm, tenant_id=tenant_ctx.tenant_id)
+    history = await session.get_history(session_id)
+
+    messages = []
+    for msg in history:
+        if msg.role in ("user", "assistant") and msg.content:
+            messages.append(
+                {
+                    "role": msg.role,
+                    "content": msg.content,
+                }
+            )
+
+    return {
+        "session_id": session_id,
+        "messages": messages,
+    }
+
+
 @router.post("/sessions/{session_id}/release")
 async def release_session(
     request: Request,
