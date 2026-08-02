@@ -37,6 +37,23 @@ class ChatResponse(BaseModel):
     tool_used: str | None = None
 
 
+@router.post("/chat/debug")
+async def chat_debug(request: Request) -> dict:
+    """Debug endpoint para ver el payload exacto recibido"""
+    raw_body = await request.body()
+    try:
+        json_body = await request.json()
+    except Exception as e:
+        json_body = f"Error parsing JSON: {e}"
+
+    return {
+        "raw_body": raw_body.decode("utf-8"),
+        "parsed_json": json_body,
+        "headers": dict(request.headers),
+        "method": request.method,
+    }
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     request: Request,
