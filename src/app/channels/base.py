@@ -1,7 +1,14 @@
 from abc import ABC, abstractmethod
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
+
+
+class Channel(StrEnum):
+    WEB = "web"
+    WHATSAPP = "whatsapp"
+    CALL = "call"
 
 
 class IncomingMessage(BaseModel):
