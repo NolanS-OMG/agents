@@ -70,9 +70,8 @@ class EjecutarAccion(BaseTool):
                 status=200,
                 data={
                     "status": "dispatched",
-                    "action": categoria,
+                    "frontend_tool": accion_config.get("frontend_tool", categoria),
                     "args": parametros,
-                    "confirmacion_requerida": accion_config.get("confirmacion_requerida", False),
                 },
             )
 

@@ -179,23 +179,32 @@ async def websocket_chat(websocket: WebSocket):
                             except json.JSONDecodeError:
                                 tool_args = {}
 
-                            await websocket.send_json({
-                                "type": "tool_call",
-                                "name": tool_name,
-                                "args": tool_args,
-                            })
-
                             # Execute tool
-                            tool_obj = next((t for t in tools_objs if t.name == tool_name), None)
+                            tool_obj = next(
+                                (t for t in tools_objs if t.name == tool_name), None
+                            )
                             if tool_obj:
                                 result = await tool_obj.execute(**tool_args)
-                                tool_result_content = json.dumps(result.data) if result.data else ""
 
-                                await websocket.send_json({
-                                    "type": "tool_result",
-                                    "name": tool_name,
-                                    "content": tool_result_content,
-                                })
+                                # Frontend action: emit tool_call for frontend
+                                if (
+                                    hasattr(result, "data")
+                                    and isinstance(result.data, dict)
+                                    and result.data.get("status") == "dispatched"
+                                ):
+                                    await websocket.send_json({
+                                        "type": "tool_call",
+                                        "tool": result.data["frontend_tool"],
+                                        "args": result.data.get("args", {}),
+                                    })
+                                    tool_result_content = json.dumps({
+                                        "status": "ok",
+                                        "message": "Action dispatched to frontend.",
+                                    })
+                                else:
+                                    tool_result_content = (
+                                        json.dumps(result.data) if hasattr(result, "data") else ""
+                                    )
 
                                 # Add tool call to history
                                 history.append(LLMMessage(
@@ -211,9 +220,13 @@ async def websocket_chat(websocket: WebSocket):
                                 ))
 
                                 # Continue streaming with tool result
-                                messages_with_tool = [LLMMessage(role="system", content=tenant_prompt)] + history
+                                messages_with_tool = (
+                                    [LLMMessage(role="system", content=tenant_prompt)] + history
+                                )
 
-                                async for tool_chunk in llm.stream(messages_with_tool, tools=None):
+                                async for tool_chunk in llm.stream(
+                                    messages_with_tool, tools=None
+                                ):
                                     if tool_chunk.get("type") == "content":
                                         content = tool_chunk.get("content", "")
                                         accumulated_content += content
