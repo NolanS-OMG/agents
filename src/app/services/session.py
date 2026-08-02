@@ -76,6 +76,7 @@ class SessionManager:
         await self._redis.set(key, data, ex=SESSION_TTL)
 
         if self._tenant_id:
+            logger.info(f"[Session] Persisting {len(messages)} messages to DB for session {session_id}")
             await self._persist_to_db(session_id, messages, model_used, metadata)
 
     async def _compress_and_save(self, session_id: str, old_msgs: list[LLMMessage]) -> None:
@@ -163,14 +164,13 @@ class SessionManager:
             await session.save()
 
         existing_count = await ChatMessage.filter(session=session).count()
-        new_messages = messages[existing_count:]
 
-        for msg in new_messages:
-            if msg.role in ("user", "assistant"):
+        for idx, msg in enumerate(messages):
+            if msg.role in ("user", "assistant") and idx >= existing_count:
                 await ChatMessage.create(
                     session=session,
                     role=msg.role,
-                    content=msg.content,
-                    model_used=model_used,
+                    content=msg.content or "",
+                    model_used=model_used if msg.role == "assistant" else None,
                     tool_calls=getattr(msg, "tool_calls", None),
                 )

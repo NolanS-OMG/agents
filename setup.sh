@@ -20,6 +20,17 @@ for cmd in docker uv; do
     fi
 done
 
+# Limpiar puerto 8000 si está ocupado
+echo ">> Limpiando puerto 8000..."
+if lsof -ti:8000 &> /dev/null; then
+    echo "   Matando procesos en puerto 8000..."
+    kill -9 $(lsof -ti:8000) 2>/dev/null || true
+fi
+
+# Bajar contenedores Docker si están corriendo
+echo ">> Bajando contenedores Docker existentes..."
+docker compose down 2>/dev/null || true
+
 # Create .env from example if it doesn't exist
 if [ ! -f .env ]; then
     cp .env.example .env
@@ -39,21 +50,9 @@ else
     uv sync
 fi
 
-# Start Redis via Docker if not already running
-if docker ps --format '{{.Names}}' | grep -q "prototipo-agente-redis"; then
-    echo ">> Redis ya está corriendo en Docker."
-else
-    echo ">> Levantando Redis en Docker..."
-    docker compose up redis -d --wait
-fi
-
-# Start PostgreSQL via Docker if not already running
-if docker ps --format '{{.Names}}' | grep -q "prototipo-agente-postgres"; then
-    echo ">> PostgreSQL ya está corriendo en Docker."
-else
-    echo ">> Levantando PostgreSQL en Docker..."
-    docker compose up postgres -d --wait
-fi
+# Levantar Redis y PostgreSQL
+echo ">> Levantando Redis y PostgreSQL en Docker..."
+docker compose up redis postgres -d --wait
 
 # Apply database schema
 echo ">> Aplicando schema de base de datos..."

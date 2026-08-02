@@ -88,6 +88,7 @@ class AgentRouter:
 
             if not response.tool_calls:
                 content = response.content or "Lo siento, no pude generar una respuesta."
+                messages.append(LLMMessage(role="assistant", content=content))
                 return self._build_result(
                     response=content,
                     tool_used=None,
