@@ -68,6 +68,8 @@ def _serialize_tenant_config(config: TenantConfig) -> dict:
                 "campos_requeridos": getattr(d, "campos_requeridos", []),
                 "campos_opcionales": getattr(d, "campos_opcionales", []),
                 "confirmacion_requerida": getattr(d, "confirmacion_requerida", False),
+                "channels": getattr(d, "channels", ["web", "whatsapp", "call"]),
+                "frontend_action": getattr(d, "frontend_action", False),
             }
             for d in config.docs
         ],
@@ -87,6 +89,8 @@ class _CachedDoc:
         "campos_requeridos",
         "campos_opcionales",
         "confirmacion_requerida",
+        "channels",
+        "frontend_action",
     )
 
     def __init__(self, **kw: Any) -> None:

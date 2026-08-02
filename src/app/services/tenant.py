@@ -189,6 +189,8 @@ class TenantConfig:
                         "campos_requeridos": doc.campos_requeridos,
                         "campos_opcionales": doc.campos_opcionales,
                         "confirmacion_requerida": doc.confirmacion_requerida,
+                        "channels": getattr(doc, "channels", ["web", "whatsapp", "call"]),
+                        "frontend_action": getattr(doc, "frontend_action", False),
                     }
                 )
         return acciones
