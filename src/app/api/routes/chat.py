@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from fastapi import APIRouter, Cookie, HTTPException, Path, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.app.api.deps import CurrentTenant
 from src.app.core.config import settings
@@ -22,6 +22,13 @@ class ChatMessage(BaseModel):
     message: str = Field(min_length=1, max_length=4096)
     channel: str = Field(default="api")
     language: str = Field(default="en", pattern=r"^(en|es)$")
+
+    @field_validator("session_id", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v: str | None) -> str | None:
+        if v == "":
+            return None
+        return v
 
 
 class ChatResponse(BaseModel):
