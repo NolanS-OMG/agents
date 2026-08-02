@@ -18,6 +18,7 @@ from src.app.services.event_tracker import track_llm_call, track_stt, track_tts
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
 from src.app.services.tenant_loader import load_tenant_async
+from src.app.channels.base import Channel
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ async def converse(
 
     tenant_config = await load_tenant_async(tenant.tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant.tenant_id)
-    tools = get_tools_for_tenant(tenant_config)
+    tools = get_tools_for_tenant(tenant_config, channel=Channel.CALL)
     agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_config.get_prompt(estilo))
 
     session_key = f"{tenant.tenant_id}:{conversant_id}"

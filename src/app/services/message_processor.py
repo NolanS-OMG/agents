@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
-from src.app.channels.base import IncomingMessage, OutgoingMessage
+from src.app.channels.base import Channel, IncomingMessage, OutgoingMessage
 from src.app.services.agent_router import AgentResult, AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
@@ -77,7 +77,7 @@ async def process_and_reply(
     """Run agent loop and send reply. Returns AgentResult or None on error."""
     tenant = await load_tenant_async(tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant_id)
-    tools = get_tools_for_tenant(tenant)
+    tools = get_tools_for_tenant(tenant, channel=Channel.WHATSAPP)
     agent = AgentRouter(
         llm=llm,
         tools=tools,

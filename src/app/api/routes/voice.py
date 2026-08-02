@@ -20,6 +20,7 @@ from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
 from src.app.services.tenant_loader import load_tenant_async
 from src.app.services.vad import SileroVAD, TurnDetector
+from src.app.channels.base import Channel
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)
@@ -164,7 +165,7 @@ async def _process_and_synthesize_tenant(
     redis = ws.app.state.redis
     tenant = await load_tenant_async(tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant_id)
-    tools = get_tools_for_tenant(tenant)
+    tools = get_tools_for_tenant(tenant, channel=Channel.CALL)
     agent = AgentRouter(
         llm=llm,
         tools=tools,

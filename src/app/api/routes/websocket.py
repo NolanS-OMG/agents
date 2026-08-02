@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 
+from src.app.channels.base import Channel
 from src.app.core.config import settings
 from src.app.db.models import ApiKey
 from src.app.middleware.rate_limit import check_session_rate_limit
@@ -23,6 +24,7 @@ class WSChatMessage(BaseModel):
     message: str = Field(min_length=1, max_length=4096)
     session_id: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_\-]+$")
     language: str = Field(default="en", pattern=r"^(en|es)$")
+    channel: str = Field(default="web", pattern=r"^(web|whatsapp|call)$")
 
 
 @router.websocket("/ws/chat")
@@ -140,9 +142,10 @@ async def websocket_chat(websocket: WebSocket):
             # Build messages for LLM
             messages = [LLMMessage(role="system", content=tenant_prompt)] + history
 
-            # Get tools
+            # Get tools filtered by channel
             from src.app.tools.registry import get_tools_for_tenant
-            tools_objs = get_tools_for_tenant(tenant)
+            ws_channel = Channel(msg.channel)
+            tools_objs = get_tools_for_tenant(tenant, channel=ws_channel)
             tools = [t.schema() for t in tools_objs] if tools_objs else None
 
             # Stream response
@@ -183,7 +186,7 @@ async def websocket_chat(websocket: WebSocket):
                             })
 
                             # Execute tool
-                            tool_obj = next((t for t in tools_objs if t.__class__.__name__ == tool_name), None)
+                            tool_obj = next((t for t in tools_objs if t.name == tool_name), None)
                             if tool_obj:
                                 result = await tool_obj.execute(**tool_args)
                                 tool_result_content = json.dumps(result.data) if result.data else ""

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Cookie, HTTPException, Path, Request, Response
 from pydantic import BaseModel, Field, field_validator
 
 from src.app.api.deps import CurrentTenant
+from src.app.channels.base import Channel
 from src.app.core.config import settings
 from src.app.middleware.rate_limit import check_session_rate_limit
 from src.app.services.agent_router import AgentRouter
@@ -20,7 +21,7 @@ class ChatMessage(BaseModel):
         default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_\-]+$"
     )
     message: str = Field(min_length=1, max_length=4096)
-    channel: str = Field(default="api")
+    channel: str = Field(default="web", pattern=r"^(web|whatsapp|call)$")
     language: str = Field(default="en", pattern=r"^(en|es)$")
 
     @field_validator("session_id", mode="before")
@@ -92,7 +93,8 @@ async def chat(
 
     tenant = await load_tenant_async(tenant_ctx.tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant_ctx.tenant_id)
-    tools = get_tools_for_tenant(tenant)
+    channel = Channel(body.channel)
+    tools = get_tools_for_tenant(tenant, channel=channel)
 
     tenant_prompt = tenant.get_prompt(settings.estilo)
     doc_list = "\n".join(
