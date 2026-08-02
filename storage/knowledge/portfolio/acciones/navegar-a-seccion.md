@@ -14,7 +14,8 @@ confirmacion_requerida: false
 channels:
 - web
 frontend_action: true
+frontend_tool: navigate_to
 ---
 
 Scrollea suavemente a una sección específica y la resalta brevemente.
-Secciones válidas: projects, about, experience, contact, skills, hero.
+Secciones válidas: header, experience, projects.

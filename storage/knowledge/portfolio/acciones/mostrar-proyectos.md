@@ -9,14 +9,14 @@ tags:
 status: stable
 campos_requeridos: []
 campos_opcionales:
-- filter
-- projectIds
+- ids
 confirmacion_requerida: false
 channels:
 - web
 frontend_action: true
+frontend_tool: show_projects
 ---
 
-Muestra una galería de proyectos en el chat.
-Si se especifica filter, muestra solo los que matchean por tech/titulo.
-Sin parámetros muestra los más destacados.
+Muestra tarjetas de proyectos en el chat.
+ids: array de IDs de proyectos a mostrar. Si vacío, muestra todos.
+IDs válidos: snake-rl, schools, inventory-crud, portfolios-lobby.

@@ -10,15 +10,13 @@ tags:
 status: stable
 campos_requeridos:
 - query
-campos_opcionales:
-- categories
+campos_opcionales: []
 confirmacion_requerida: false
 channels:
 - web
 frontend_action: true
+frontend_tool: compatibility_score
 ---
 
-Evalúa la compatibilidad entre lo que busca el usuario y los skills de Nolan.
-Renderiza un mini-dashboard con score y desglose por categoría.
-query: descripción libre de lo que buscan.
-categories: opcional, ya parseado por el AI en categorías.
+Muestra dashboard animado de compatibilidad entre skills requeridas y las de Nolan.
+query: string con tecnologías/skills separadas por espacios o comas.

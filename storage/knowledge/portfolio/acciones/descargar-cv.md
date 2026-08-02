@@ -8,13 +8,13 @@ tags:
 - frontend
 status: stable
 campos_requeridos: []
-campos_opcionales:
-- lang
+campos_opcionales: []
 confirmacion_requerida: false
 channels:
 - web
 frontend_action: true
+frontend_tool: download_cv
 ---
 
-Muestra un botón de descarga del CV de Nolan en PDF.
-Si se especifica lang (en/es) descarga la versión en ese idioma.
+Inyecta un botón de descarga del CV en el chat.
+El idioma se toma del contexto de la conversación.

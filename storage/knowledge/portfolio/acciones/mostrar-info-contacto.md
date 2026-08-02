@@ -14,7 +14,8 @@ confirmacion_requerida: false
 channels:
 - web
 frontend_action: true
+frontend_tool: copy_contact
 ---
 
-Renderiza la información de contacto con botones de copiar individuales.
-type puede ser: email, linkedin, github, all (default: all).
+Muestra información de contacto con botones para copiar al clipboard.
+type: all | email | linkedin | github (default: all).

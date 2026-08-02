@@ -17,7 +17,8 @@ confirmacion_requerida: false
 channels:
 - web
 frontend_action: true
+frontend_tool: send_message
 ---
 
-Inicia un flujo interactivo de formulario dentro del chat para enviar un mensaje a Nolan.
-Si el AI ya conoce el nombre o email del usuario, los pasa como pre-fill.
+Inyecta formulario de contacto en el chat para enviar mensaje a Nolan.
+name, email, message: campos pre-llenados si el AI los conoce.
