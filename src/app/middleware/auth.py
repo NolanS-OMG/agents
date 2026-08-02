@@ -24,6 +24,9 @@ EXCLUDED_PREFIXES = (
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         path = request.url.path
 
         if any(path.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
