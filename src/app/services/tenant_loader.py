@@ -70,6 +70,7 @@ def _serialize_tenant_config(config: TenantConfig) -> dict:
                 "confirmacion_requerida": getattr(d, "confirmacion_requerida", False),
                 "channels": getattr(d, "channels", ["web", "whatsapp", "call"]),
                 "frontend_action": getattr(d, "frontend_action", False),
+                "frontend_tool": getattr(d, "frontend_tool", ""),
             }
             for d in config.docs
         ],
@@ -91,6 +92,7 @@ class _CachedDoc:
         "confirmacion_requerida",
         "channels",
         "frontend_action",
+        "frontend_tool",
     )
 
     def __init__(self, **kw: Any) -> None:

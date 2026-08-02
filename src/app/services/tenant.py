@@ -191,6 +191,7 @@ class TenantConfig:
                         "confirmacion_requerida": doc.confirmacion_requerida,
                         "channels": getattr(doc, "channels", ["web", "whatsapp", "call"]),
                         "frontend_action": getattr(doc, "frontend_action", False),
+                        "frontend_tool": getattr(doc, "frontend_tool", ""),
                     }
                 )
         return acciones
