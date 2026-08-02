@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from httpx import AsyncClient, HTTPStatusError
 
@@ -139,3 +139,100 @@ class OpenAICompatibleProvider(LLMProvider):
             tokens_per_second=round(tokens_per_second, 1),
             ttft_ms=latency_ms,
         )
+
+    async def stream(
+        self,
+        messages: list[LLMMessage],
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float = 0.3,
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Stream LLM response chunks in real-time"""
+        payload: dict[str, Any] = {
+            "model": self._model,
+            "messages": [m.model_dump(exclude_none=True) for m in messages],
+            "temperature": temperature,
+            "stream": True,
+        }
+        if tools:
+            payload["tools"] = tools
+
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+
+        if "openrouter" in self._base_url:
+            headers["HTTP-Referer"] = "https://github.com/agente-ia"
+            headers["X-Title"] = "Agente IA"
+
+        logger.info(f"LLM stream request to {self._base_url} with model {self._model}")
+
+        async with self._client.stream(
+            "POST",
+            f"{self._base_url}/chat/completions",
+            json=payload,
+            headers=headers,
+            timeout=60.0,
+        ) as response:
+            response.raise_for_status()
+
+            accumulated_content = ""
+            accumulated_tool_calls: dict[int, dict[str, Any]] = {}
+
+            async for line in response.aiter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+
+                if line == "data: [DONE]":
+                    break
+
+                try:
+                    chunk_data = json.loads(line[6:])
+                    choices = chunk_data.get("choices", [])
+                    if not choices:
+                        continue
+
+                    delta = choices[0].get("delta", {})
+                    finish_reason = choices[0].get("finish_reason")
+
+                    # Content chunk
+                    if "content" in delta and delta["content"]:
+                        content = delta["content"]
+                        accumulated_content += content
+                        yield {
+                            "type": "content",
+                            "content": content,
+                        }
+
+                    # Tool calls
+                    if "tool_calls" in delta and delta["tool_calls"]:
+                        for tc in delta["tool_calls"]:
+                            idx = tc.get("index", 0)
+                            if idx not in accumulated_tool_calls:
+                                accumulated_tool_calls[idx] = {
+                                    "id": tc.get("id", ""),
+                                    "type": tc.get("type", "function"),
+                                    "function": {"name": "", "arguments": ""},
+                                }
+
+                            if "function" in tc:
+                                func = tc["function"]
+                                if "name" in func:
+                                    accumulated_tool_calls[idx]["function"]["name"] = func["name"]
+                                if "arguments" in func:
+                                    accumulated_tool_calls[idx]["function"]["arguments"] += func[
+                                        "arguments"
+                                    ]
+
+                    # Finish
+                    if finish_reason:
+                        tool_calls_list = list(accumulated_tool_calls.values())
+                        yield {
+                            "type": "done",
+                            "finish_reason": finish_reason,
+                            "content": accumulated_content,
+                            "tool_calls": tool_calls_list,
+                        }
+
+                except json.JSONDecodeError:
+                    continue

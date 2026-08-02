@@ -11,6 +11,7 @@ from src.app.api.routes import (
     usage,
     voice,
     webhook,
+    websocket,
 )
 from src.app.core.config import settings
 from src.app.core.lifespan import lifespan
@@ -42,6 +43,7 @@ app.add_middleware(AuthMiddleware)
 app.add_middleware(CorrelationMiddleware)
 
 app.include_router(health.router)
+app.include_router(websocket.router)
 app.include_router(chat.router)
 app.include_router(converse.router)
 app.include_router(knowledge.router)
