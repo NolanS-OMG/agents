@@ -65,6 +65,17 @@ class EjecutarAccion(BaseTool):
                 mensaje_sistema=f"Faltan datos para completar: {accion_config['nombre']}.",
             )
 
+        if accion_config.get("frontend_action", False):
+            return ToolResult(
+                status=200,
+                data={
+                    "status": "dispatched",
+                    "action": categoria,
+                    "args": parametros,
+                    "confirmacion_requerida": accion_config.get("confirmacion_requerida", False),
+                },
+            )
+
         return ToolResult(
             status=200,
             data={
