@@ -46,6 +46,13 @@ async def index_portfolio() -> None:
         title = frontmatter.get("title", md_file.stem.replace("-", " ").title())
         description = frontmatter.get("description", "")
 
+        campos_requeridos = frontmatter.get("campos_requeridos", [])
+        campos_opcionales = frontmatter.get("campos_opcionales", [])
+        confirmacion_requerida = frontmatter.get("confirmacion_requerida", False)
+        channels = frontmatter.get("channels", ["web", "whatsapp", "call"])
+        frontend_action = frontmatter.get("frontend_action", False)
+        frontend_tool = frontmatter.get("frontend_tool", "")
+
         existing = await KnowledgeDocument.filter(tenant=tenant, slug=slug).first()
 
         if existing:
@@ -54,6 +61,15 @@ async def index_portfolio() -> None:
                 existing.description = description
                 existing.file_path = str(relative_path)
                 existing.file_hash = file_hash
+                existing.doc_type = doc_type
+                existing.tags = frontmatter.get("tags", [])
+                existing.status = frontmatter.get("status", "stable")
+                existing.campos_requeridos = campos_requeridos
+                existing.campos_opcionales = campos_opcionales
+                existing.confirmacion_requerida = confirmacion_requerida
+                existing.channels = channels
+                existing.frontend_action = frontend_action
+                existing.frontend_tool = frontend_tool
                 await existing.save()
                 print(f"✏️  {slug} (actualizado)")
             else:
@@ -70,6 +86,12 @@ async def index_portfolio() -> None:
                 file_hash=file_hash,
                 tags=frontmatter.get("tags", []),
                 status=frontmatter.get("status", "stable"),
+                campos_requeridos=campos_requeridos,
+                campos_opcionales=campos_opcionales,
+                confirmacion_requerida=confirmacion_requerida,
+                channels=channels,
+                frontend_action=frontend_action,
+                frontend_tool=frontend_tool,
             )
             print(f"✅ {slug} (nuevo)")
             indexed += 1
