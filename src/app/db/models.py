@@ -59,6 +59,8 @@ class KnowledgeDocument(Model):
     campos_requeridos = fields.JSONField(default=list)
     campos_opcionales = fields.JSONField(default=list)
     confirmacion_requerida = fields.BooleanField(default=False)
+    channels = fields.JSONField(default=lambda: ["web", "whatsapp", "call"])
+    frontend_action = fields.BooleanField(default=False)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
