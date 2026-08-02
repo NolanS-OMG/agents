@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.app.channels.base import Channel
 from src.app.tools.base import BaseTool, ToolError, ToolResult
 
 if TYPE_CHECKING:
@@ -9,8 +10,9 @@ if TYPE_CHECKING:
 
 
 class EjecutarAccion(BaseTool):
-    def __init__(self, tenant: TenantConfig | None = None) -> None:
+    def __init__(self, tenant: TenantConfig | None = None, channel: Channel = Channel.WEB) -> None:
         self._tenant = tenant
+        self._channel = channel
 
     @property
     def name(self) -> str:
@@ -76,7 +78,11 @@ class EjecutarAccion(BaseTool):
     def _get_acciones(self) -> list[dict[str, Any]]:
         if not self._tenant:
             return []
-        return self._tenant.get_acciones_config()
+        all_acciones = self._tenant.get_acciones_config()
+        return [
+            a for a in all_acciones
+            if self._channel.value in a.get("channels", ["web", "whatsapp", "call"])
+        ]
 
     def _find_accion(self, categoria: str) -> dict[str, Any] | None:
         for accion in self._get_acciones():
