@@ -12,13 +12,13 @@ if TYPE_CHECKING:
     from httpx import AsyncClient
 
 from src.app.api.deps import CurrentTenant
+from src.app.channels.base import Channel
 from src.app.core.config import settings
 from src.app.services.agent_router import AgentRouter
 from src.app.services.event_tracker import track_llm_call, track_stt, track_tts
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
 from src.app.services.tenant_loader import load_tenant_async
-from src.app.channels.base import Channel
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)

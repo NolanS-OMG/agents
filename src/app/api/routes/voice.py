@@ -14,13 +14,13 @@ with warnings.catch_warnings():
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 
+from src.app.channels.base import Channel
 from src.app.core.config import settings
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
 from src.app.services.tenant_loader import load_tenant_async
 from src.app.services.vad import SileroVAD, TurnDetector
-from src.app.channels.base import Channel
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)
