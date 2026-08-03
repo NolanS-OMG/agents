@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import logging
+
 from src.app.api.routes import (
     analytics,
     chat,
@@ -10,7 +12,6 @@ from src.app.api.routes import (
     prompts,
     sse,
     usage,
-    voice,
     webhook,
     websocket,
 )
@@ -19,6 +20,8 @@ from src.app.core.lifespan import lifespan
 from src.app.core.logging_config import setup_logging
 from src.app.middleware.auth import AuthMiddleware
 from src.app.middleware.correlation import CorrelationMiddleware
+
+logger = logging.getLogger(__name__)
 
 setup_logging(debug=settings.debug)
 
@@ -54,5 +57,11 @@ app.include_router(knowledge.router)
 app.include_router(prompts.router)
 app.include_router(usage.router)
 app.include_router(webhook.router)
-app.include_router(voice.router)
 app.include_router(analytics.router)
+
+if settings.voice_enabled:
+    try:
+        from src.app.api.routes import voice
+        app.include_router(voice.router)
+    except ImportError:
+        logger.warning("Voice dependencies not available, voice routes disabled")
