@@ -11,6 +11,8 @@ wheels/
 
 # Environment
 .env
+.env.test
+.env.local
 
 # IDE
 .idea/
@@ -27,10 +29,7 @@ wheels/
 Thumbs.db
 
 # Runtime data
-data/analytics.db
-data/*.db
-data/*.db-shm
-data/*.db-wal
+data/
 
 # Logs
 *.log
