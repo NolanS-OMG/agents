@@ -10,7 +10,6 @@ from src.app.channels.base import Channel
 from src.app.core.config import settings
 from src.app.db.models import ApiKey
 from src.app.middleware.rate_limit import check_session_rate_limit
-from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.base import LLMMessage
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
@@ -138,9 +137,6 @@ async def websocket_chat(websocket: WebSocket):
 
             # Add user message to history
             history.append(LLMMessage(role="user", content=msg.message))
-
-            # Build messages for LLM
-            messages = [LLMMessage(role="system", content=tenant_prompt)] + history
 
             # Get tools filtered by channel
             from src.app.tools.registry import get_tools_for_tenant

@@ -8,6 +8,7 @@ from src.app.api.routes import (
     health,
     knowledge,
     prompts,
+    sse,
     usage,
     voice,
     webhook,
@@ -34,6 +35,8 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:3000",
         "https://nolanashcraft.netlify.app",
+        "https://nolanashcraft.vercel.app",
+        "https://*.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
@@ -44,6 +47,7 @@ app.add_middleware(CorrelationMiddleware)
 
 app.include_router(health.router)
 app.include_router(websocket.router)
+app.include_router(sse.router)
 app.include_router(chat.router)
 app.include_router(converse.router)
 app.include_router(knowledge.router)
