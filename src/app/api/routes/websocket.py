@@ -118,9 +118,9 @@ async def websocket_chat(websocket: WebSocket):
             # Build prompt
             tenant_prompt = tenant.get_prompt(settings.estilo)
             doc_list = "\n".join([
-                f"  - {doc.slug}: {doc.title} — {doc.description}"
+                f"  - {getattr(doc, 'slug', '')}: {getattr(doc, 'title', '')} — {desc}"
                 for doc in tenant.docs
-                if doc.description
+                if (desc := getattr(doc, "description", ""))
             ])
             if doc_list:
                 tenant_prompt += f"\n\nDOCUMENTOS DISPONIBLES (usa buscar_base_conocimiento_extensa con slug):\n{doc_list}"
