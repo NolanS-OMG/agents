@@ -43,3 +43,6 @@ temp/
 
 # Archives (test audio/reference files)
 archives/
+
+# Internal docs (deploy guides, research, plans — not for repo)
+docs/internal/
