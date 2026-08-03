@@ -54,10 +54,15 @@ fi
 echo ">> Levantando Redis y PostgreSQL en Docker..."
 docker compose up redis postgres -d --wait
 
-# Apply database schema
-echo ">> Aplicando schema de base de datos..."
-uv run python scripts/init_db.py
-echo "   Schema OK"
+# Apply database migrations
+echo ">> Aplicando migraciones de base de datos..."
+if uv run aerich upgrade 2>/dev/null; then
+    echo "   Migraciones aplicadas."
+else
+    echo "   DB nuevo detectado, inicializando schema..."
+    uv run aerich init-db
+    echo "   Schema inicial creado."
+fi
 
 # Start FastAPI with uvicorn
 echo ""
