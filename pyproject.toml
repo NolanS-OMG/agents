@@ -19,6 +19,7 @@ dependencies = [
     "redis>=8.0.1",
     "uvicorn[standard]>=0.51.0",
     "tortoise-orm[asyncpg]>=0.21.0,<0.22.0",
+    "aerich>=0.7,<0.8",
     "cryptography>=44.0.0",
     "python-multipart>=0.0.9",
 ]
@@ -66,6 +67,11 @@ plugins = ["pydantic.mypy"]
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+[tool.aerich]
+tortoise_orm = "src.app.db.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "."
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
