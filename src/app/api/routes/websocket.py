@@ -148,113 +148,113 @@ async def websocket_chat(websocket: WebSocket):
             tools_objs = get_tools_for_tenant(tenant, channel=ws_channel)
             tools = [t.schema() for t in tools_objs] if tools_objs else None
 
-            # Stream response
+            # Stream response with tool-calling loop
             accumulated_content = ""
-            tool_calls_data = []
-            finish_reason = ""
+            max_tool_rounds = 5
 
-            async for chunk in llm.stream(messages, tools=tools):
-                chunk_type = chunk.get("type")
+            for _round in range(max_tool_rounds + 1):
+                current_messages = (
+                    [LLMMessage(role="system", content=tenant_prompt)] + history
+                )
 
-                if chunk_type == "content":
-                    content = chunk.get("content", "")
-                    accumulated_content += content
-                    await websocket.send_json({
-                        "type": "content",
-                        "content": content,
-                    })
+                tool_calls_data = []
+                round_content = ""
 
-                elif chunk_type == "done":
-                    finish_reason = chunk.get("finish_reason", "")
-                    tool_calls_data = chunk.get("tool_calls", [])
+                async for chunk in llm.stream(current_messages, tools=tools):
+                    chunk_type = chunk.get("type")
 
-                    # Handle tool calls if present
-                    if tool_calls_data and finish_reason == "tool_calls":
-                        for tc in tool_calls_data:
-                            tool_name = tc["function"]["name"]
-                            tool_args_str = tc["function"]["arguments"]
+                    if chunk_type == "content":
+                        content = chunk.get("content", "")
+                        round_content += content
+                        accumulated_content += content
+                        await websocket.send_json({
+                            "type": "content",
+                            "content": content,
+                        })
 
-                            try:
-                                tool_args = json.loads(tool_args_str)
-                            except json.JSONDecodeError:
-                                tool_args = {}
+                    elif chunk_type == "done":
+                        finish_reason = chunk.get("finish_reason", "")
+                        tool_calls_data = chunk.get("tool_calls", [])
 
-                            # Execute tool
-                            tool_obj = next(
-                                (t for t in tools_objs if t.name == tool_name), None
-                            )
-                            if tool_obj:
-                                result = await tool_obj.execute(**tool_args)
+                if not tool_calls_data or finish_reason != "tool_calls":
+                    break
 
-                                # Frontend action: emit tool_call for frontend
-                                if (
-                                    hasattr(result, "data")
-                                    and isinstance(result.data, dict)
-                                    and result.data.get("status") == "dispatched"
-                                ):
-                                    await websocket.send_json({
-                                        "type": "tool_call",
-                                        "tool": result.data["frontend_tool"],
-                                        "args": result.data.get("args", {}),
-                                    })
-                                    tool_result_content = json.dumps({
-                                        "status": "ok",
-                                        "message": "Action dispatched to frontend.",
-                                    })
-                                else:
-                                    tool_result_content = (
-                                        json.dumps(result.data) if hasattr(result, "data") else ""
-                                    )
+                # Process all tool calls in this round
+                if round_content:
+                    history.append(LLMMessage(
+                        role="assistant", content=round_content
+                    ))
 
-                                # Add tool call to history
-                                history.append(LLMMessage(
-                                    role="assistant",
-                                    content=None,
-                                    tool_calls=[tc],
-                                ))
-                                history.append(LLMMessage(
-                                    role="tool",
-                                    name=tool_name,
-                                    content=tool_result_content,
-                                    tool_call_id=tc.get("id", ""),
-                                ))
+                for tc in tool_calls_data:
+                    tool_name = tc["function"]["name"]
+                    tool_args_str = tc["function"]["arguments"]
 
-                                # Continue streaming with tool result
-                                messages_with_tool = (
-                                    [LLMMessage(role="system", content=tenant_prompt)] + history
-                                )
+                    try:
+                        tool_args = json.loads(tool_args_str)
+                    except json.JSONDecodeError:
+                        tool_args = {}
 
-                                async for tool_chunk in llm.stream(
-                                    messages_with_tool, tools=None
-                                ):
-                                    if tool_chunk.get("type") == "content":
-                                        content = tool_chunk.get("content", "")
-                                        accumulated_content += content
-                                        await websocket.send_json({
-                                            "type": "content",
-                                            "content": content,
-                                        })
-                                    elif tool_chunk.get("type") == "done":
-                                        break
+                    tool_obj = next(
+                        (t for t in tools_objs if t.name == tool_name), None
+                    )
+                    if not tool_obj:
+                        continue
 
-                    # Add assistant message to history
-                    if accumulated_content:
-                        history.append(LLMMessage(role="assistant", content=accumulated_content))
+                    result = await tool_obj.execute(**tool_args)
 
-                    # Save to session
-                    if redis:
-                        session_mgr = SessionManager(redis, llm=llm, tenant_id=tenant_id)
-                        await session_mgr.save_history(
-                            session_id,
-                            history,
-                            model_used=llm._model,
+                    if (
+                        hasattr(result, "data")
+                        and isinstance(result.data, dict)
+                        and result.data.get("status") == "dispatched"
+                    ):
+                        await websocket.send_json({
+                            "type": "tool_call",
+                            "tool": result.data["frontend_tool"],
+                            "args": result.data.get("args", {}),
+                        })
+                        tool_result_content = json.dumps({
+                            "status": "ok",
+                            "message": "Action dispatched to frontend.",
+                        })
+                    else:
+                        tool_result_content = (
+                            json.dumps(result.data)
+                            if hasattr(result, "data")
+                            else ""
                         )
 
-                    # Send done
-                    await websocket.send_json({
-                        "type": "done",
-                        "session_id": session_id,
-                    })
+                    history.append(LLMMessage(
+                        role="assistant",
+                        content=None,
+                        tool_calls=[tc],
+                    ))
+                    history.append(LLMMessage(
+                        role="tool",
+                        name=tool_name,
+                        content=tool_result_content,
+                        tool_call_id=tc.get("id", ""),
+                    ))
+
+            # Add final assistant text to history
+            if accumulated_content:
+                history.append(LLMMessage(
+                    role="assistant", content=accumulated_content
+                ))
+
+            # Save to session
+            if redis:
+                session_mgr = SessionManager(redis, llm=llm, tenant_id=tenant_id)
+                await session_mgr.save_history(
+                    session_id,
+                    history,
+                    model_used=llm._model,
+                )
+
+            # Send done
+            await websocket.send_json({
+                "type": "done",
+                "session_id": session_id,
+            })
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for session {session_id}")
