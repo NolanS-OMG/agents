@@ -51,11 +51,17 @@ class TenantConfig:
         tenant_id: str,
         docs: list[KnowledgeDocument] | list[OKFDocument] | None = None,
         prompts: list[TenantPrompt] | None = None,
+        config: dict[str, Any] | None = None,
     ) -> None:
         self.tenant_id = tenant_id
         self.docs = docs or []
         self.prompts = prompts or []
+        self._config = config or {}
         self._is_legacy = len(self.docs) > 0 and isinstance(self.docs[0], OKFDocument)
+
+    @property
+    def enabled_tools(self) -> list[str]:
+        return self._config.get("tools", ["ejecutar_accion"])
 
     @classmethod
     def from_filesystem(cls, tenant_id: str) -> TenantConfig:

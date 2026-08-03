@@ -21,8 +21,11 @@ class EjecutarAccion(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Ejecuta acciones con efecto secundario: "
-            "pedidos a domicilio, pedidos para recoger, reservaciones."
+            "Ejecuta una acción transaccional solicitada explícitamente por el usuario: "
+            "pedidos a domicilio, pedidos para recoger, reservaciones, citas. "
+            "Usa esta tool SOLO cuando el usuario pide realizar una operación que requiere "
+            "recopilar datos (nombre, dirección, items, fecha, hora, etc). "
+            "NO la uses para mostrar información o enriquecer la experiencia visual."
         )
 
     async def execute(self, **kwargs: Any) -> ToolResult | ToolError:
@@ -91,7 +94,8 @@ class EjecutarAccion(BaseTool):
         all_acciones = self._tenant.get_acciones_config()
         return [
             a for a in all_acciones
-            if self._channel.value in a.get("channels", ["web", "whatsapp", "call"])
+            if not a.get("frontend_action", False)
+            and self._channel.value in a.get("channels", ["web", "whatsapp", "call"])
         ]
 
     def _find_accion(self, categoria: str) -> dict[str, Any] | None:

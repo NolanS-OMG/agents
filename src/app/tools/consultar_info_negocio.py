@@ -19,9 +19,10 @@ class ConsultarInfoNegocio(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Consulta información general del negocio que ya tienes en contexto: "
-            "horarios, ubicación, contacto, promociones. Usa esta tool solo si "
-            "necesitas confirmar un dato que no recuerdas del contexto."
+            "Retrieves general business information: location, hours, contact details, "
+            "current promotions. Use ONLY to verify a specific fact you are unsure about. "
+            "If you already know the answer from context, respond directly without calling "
+            "this tool."
         )
 
     async def execute(self, **kwargs: Any) -> ToolResult:

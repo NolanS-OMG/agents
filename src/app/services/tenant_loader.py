@@ -4,7 +4,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
-from src.app.db.models import KnowledgeDocument, TenantPrompt
+from src.app.db.models import KnowledgeDocument, Tenant, TenantPrompt
 from src.app.services.tenant import TenantConfig
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,9 @@ async def load_tenant_from_db(tenant_id: str, redis: Redis | None = None) -> Ten
             return _deserialize_tenant_config(data)
 
     try:
+        tenant = await Tenant.get_or_none(id=tenant_id)
+        if not tenant:
+            return None
         docs = await KnowledgeDocument.filter(tenant_id=tenant_id, status="stable").all()
         prompts = await TenantPrompt.filter(tenant_id=tenant_id, active=True).all()
     except Exception as e:
@@ -30,7 +33,9 @@ async def load_tenant_from_db(tenant_id: str, redis: Redis | None = None) -> Ten
     if not docs and not prompts:
         return None
 
-    config = TenantConfig(tenant_id=tenant_id, docs=docs, prompts=prompts)
+    config = TenantConfig(
+        tenant_id=tenant_id, docs=docs, prompts=prompts, config=tenant.config
+    )
 
     if redis:
         try:
@@ -56,6 +61,7 @@ async def load_tenant_async(tenant_id: str, redis: Redis | None = None) -> Tenan
 def _serialize_tenant_config(config: TenantConfig) -> dict:
     return {
         "tenant_id": config.tenant_id,
+        "config": config._config,
         "docs": [
             {
                 "slug": d.slug,
@@ -111,4 +117,6 @@ class _CachedPrompt:
 def _deserialize_tenant_config(data: dict) -> TenantConfig:
     docs = [_CachedDoc(**d) for d in data["docs"]]
     prompts = [_CachedPrompt(**p) for p in data["prompts"]]
-    return TenantConfig(tenant_id=data["tenant_id"], docs=docs, prompts=prompts)
+    return TenantConfig(
+        tenant_id=data["tenant_id"], docs=docs, prompts=prompts, config=data.get("config", {})
+    )
