@@ -386,11 +386,11 @@ def _play_hold_sync(stop_event: "threading.Event"):
     if stop_event.wait(timeout=0.4):
         return
 
-    # Keyboard (más fuerte, +8dB)
+    # Keyboard (más fuerte, +10dB)
     if not stop_event.is_set():
         chunk = _get_keyboard_chunk(3000)
         if chunk:
-            louder = chunk + 8
+            louder = chunk + 10
             _play_audio_segment(louder)
 
 

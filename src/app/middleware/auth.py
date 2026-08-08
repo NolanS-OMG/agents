@@ -20,6 +20,7 @@ EXCLUDED_PREFIXES = (
     "/incoming-call",
     "/ws/",
     "/api/v1/sessions/",
+    "/static/",
 )
 
 

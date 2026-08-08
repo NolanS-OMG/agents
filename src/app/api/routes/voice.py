@@ -34,15 +34,19 @@ WHISPER_SAMPLE_RATE = 16000
 
 AUDIO_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "audio"
 FILLERS_DIR = AUDIO_DIR / "fillers"
+GREETINGS_DIR = AUDIO_DIR / "greetings"
 KEYBOARD_SOUND = AUDIO_DIR / "keyboard_sound.mp3"
+KEYBOARD_BOOST_DB = 10
 
 _filler_mulaw: list[bytes] = []
+_greeting_mulaw: list[tuple[str, bytes]] = []
 _keyboard_mulaw: bytes = b""
+_used_fillers: list[int] = []
 
 
 def _load_hold_audio() -> None:
-    """Pre-load filler and keyboard audio as mulaw for Twilio streaming."""
-    global _filler_mulaw, _keyboard_mulaw
+    """Pre-load filler, greeting, and keyboard audio as mulaw."""
+    global _filler_mulaw, _keyboard_mulaw, _greeting_mulaw
 
     try:
         from pydub import AudioSegment
@@ -53,8 +57,17 @@ def _load_hold_audio() -> None:
                 audio = audio.set_frame_rate(MULAW_SAMPLE_RATE).set_channels(1).set_sample_width(2)
                 _filler_mulaw.append(audioop.lin2ulaw(audio.raw_data, 2))
 
+        if GREETINGS_DIR.exists():
+            for f in sorted(GREETINGS_DIR.glob("*.mp3")):
+                audio = AudioSegment.from_mp3(str(f))
+                audio = audio.set_frame_rate(MULAW_SAMPLE_RATE).set_channels(1).set_sample_width(2)
+                # Extract the greeting text from filename for history injection
+                text = f.stem.replace("_", " ")
+                _greeting_mulaw.append((text, audioop.lin2ulaw(audio.raw_data, 2)))
+
         if KEYBOARD_SOUND.exists():
             audio = AudioSegment.from_mp3(str(KEYBOARD_SOUND))
+            audio = audio + KEYBOARD_BOOST_DB
             audio = audio.set_frame_rate(MULAW_SAMPLE_RATE).set_channels(1).set_sample_width(2)
             _keyboard_mulaw = audioop.lin2ulaw(audio.raw_data, 2)
     except Exception as e:
@@ -62,11 +75,22 @@ def _load_hold_audio() -> None:
 
 
 def _get_hold_mulaw(duration_ms: int = 3000) -> bytes:
-    """Get filler + random keyboard chunk as mulaw."""
+    """Get non-repeating filler + keyboard chunk as mulaw."""
+    global _used_fillers
     parts = []
 
     if _filler_mulaw:
-        parts.append(random.choice(_filler_mulaw))
+        # Avoid repeating recent fillers
+        available = [i for i in range(len(_filler_mulaw)) if i not in _used_fillers]
+        if not available:
+            _used_fillers.clear()
+            available = list(range(len(_filler_mulaw)))
+        idx = random.choice(available)
+        _used_fillers.append(idx)
+        # Keep history to half the total fillers
+        if len(_used_fillers) > len(_filler_mulaw) // 2:
+            _used_fillers.pop(0)
+        parts.append(_filler_mulaw[idx])
 
     if _keyboard_mulaw:
         chunk_samples = (duration_ms * MULAW_SAMPLE_RATE) // 1000
@@ -76,6 +100,14 @@ def _get_hold_mulaw(duration_ms: int = 3000) -> bytes:
             parts.append(_keyboard_mulaw[start:start + chunk_samples])
 
     return b"".join(parts)
+
+
+# Greeting text mapped to filenames for history injection
+GREETING_TEXTS = [
+    "Hola, buenas tardes. ¿En qué le puedo ayudar?",
+    "Hola, bienvenido a Santa Leña. ¿Qué le ofrecemos?",
+    "Buenas, bienvenido. ¿En qué le ayudo?",
+]
 
 
 class CallState(enum.Enum):
@@ -91,9 +123,12 @@ async def incoming_call_tenant(request: Request, tenant_id: str) -> Response:
     scheme = "wss" if request.url.scheme == "https" else "ws"
     stream_url = f"{scheme}://{host}/ws/media-stream/{tenant_id}"
 
+    # Use pre-recorded greeting audio instead of robotic <Say>
+    greeting_url = f"{request.url.scheme}://{host}/static/greetings/bienvenida_1.mp3"
+
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="es-MX">Hola, bienvenido. En qué puedo ayudarte?</Say>
+    <Play>{greeting_url}</Play>
     <Connect>
         <Stream url="{stream_url}" />
     </Connect>
@@ -142,6 +177,23 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 stream_sid = start_data.get("streamSid", "")
                 custom = start_data.get("customParameters", {})
                 caller_id = custom.get("From", "") or start_data.get("callSid", stream_sid)
+
+                # Inject greeting into session history so LLM knows it already greeted
+                redis = ws.app.state.redis
+                if redis:
+                    greeting_text = random.choice(GREETING_TEXTS)
+                    session_key = f"{tenant_id}:{caller_id or 'voice_anonymous'}"
+                    try:
+                        from src.app.services.llm.base import LLMMessage
+                        from src.app.services.llm.provider_factory import get_llm_provider
+                        from src.app.services.session import SessionManager
+                        llm = await get_llm_provider(ws.app.state.http_client, tenant_id=tenant_id)
+                        session = SessionManager(redis, llm=llm)
+                        await session.save_history(session_key, [
+                            LLMMessage(role="assistant", content=greeting_text),
+                        ])
+                    except Exception as e:
+                        logger.warning(f"[Voice:{tenant_id}] Could not inject greeting: {e}")
 
             elif event == "media":
                 payload = msg.get("media", {}).get("payload", "")
