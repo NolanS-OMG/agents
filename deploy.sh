@@ -31,9 +31,13 @@ fi
 echo ">> Pulling latest changes..."
 git pull --ff-only
 
-# Stop existing containers (free ports)
+# Stop everything (free ports, clean orphans)
 echo ">> Stopping existing containers..."
-docker compose down --remove-orphans
+docker compose down --remove-orphans 2>/dev/null || true
+# Kill anything else on port 8000
+if command -v lsof &> /dev/null && lsof -ti:8000 &> /dev/null; then
+    kill -9 $(lsof -ti:8000) 2>/dev/null || true
+fi
 
 # Build and start
 echo ">> Building and starting containers..."
