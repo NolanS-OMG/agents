@@ -42,7 +42,11 @@ class Settings(BaseSettings):
     voice_enabled: bool = Field(default=False)
     whisper_model: str = Field(default="large-v3")
     whisper_device: str = Field(default="cuda")
-    tts_voice: str = Field(default="es-MX-DaliaNeural")
+
+    stt_model: str = Field(default="openai/whisper-large-v3")
+    tts_model: str = Field(default="microsoft/mai-voice-2")
+    tts_voice: str = Field(default="es-MX-Valeria:MAI-Voice-2")
+    tts_speed: float = Field(default=1.15)
 
     twilio_enabled: bool = Field(default=False)
     twilio_account_sid: str = Field(default="")

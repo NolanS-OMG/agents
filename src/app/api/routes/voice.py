@@ -3,8 +3,10 @@ import base64
 import enum
 import json
 import logging
+import random
 import time
 import warnings
+from pathlib import Path
 from typing import Any
 
 with warnings.catch_warnings():
@@ -19,8 +21,9 @@ from src.app.core.config import settings
 from src.app.services.agent_router import AgentRouter
 from src.app.services.llm.provider_factory import get_llm_provider
 from src.app.services.session import SessionManager
+from src.app.services.stt_openrouter import OpenRouterSTT
 from src.app.services.tenant_loader import load_tenant_async
-from src.app.services.vad import SileroVAD, TurnDetector
+from src.app.services.tts_openrouter import OpenRouterTTS
 from src.app.tools.registry import get_tools_for_tenant
 
 logger = logging.getLogger(__name__)
@@ -28,6 +31,51 @@ router = APIRouter(tags=["voice"])
 
 MULAW_SAMPLE_RATE = 8000
 WHISPER_SAMPLE_RATE = 16000
+
+AUDIO_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "audio"
+FILLERS_DIR = AUDIO_DIR / "fillers"
+KEYBOARD_SOUND = AUDIO_DIR / "keyboard_sound.mp3"
+
+_filler_mulaw: list[bytes] = []
+_keyboard_mulaw: bytes = b""
+
+
+def _load_hold_audio() -> None:
+    """Pre-load filler and keyboard audio as mulaw for Twilio streaming."""
+    global _filler_mulaw, _keyboard_mulaw
+
+    try:
+        from pydub import AudioSegment
+
+        if FILLERS_DIR.exists():
+            for f in sorted(FILLERS_DIR.glob("*.mp3")):
+                audio = AudioSegment.from_mp3(str(f))
+                audio = audio.set_frame_rate(MULAW_SAMPLE_RATE).set_channels(1).set_sample_width(2)
+                _filler_mulaw.append(audioop.lin2ulaw(audio.raw_data, 2))
+
+        if KEYBOARD_SOUND.exists():
+            audio = AudioSegment.from_mp3(str(KEYBOARD_SOUND))
+            audio = audio.set_frame_rate(MULAW_SAMPLE_RATE).set_channels(1).set_sample_width(2)
+            _keyboard_mulaw = audioop.lin2ulaw(audio.raw_data, 2)
+    except Exception as e:
+        logger.warning(f"[Voice] Could not load hold audio: {e}")
+
+
+def _get_hold_mulaw(duration_ms: int = 3000) -> bytes:
+    """Get filler + random keyboard chunk as mulaw."""
+    parts = []
+
+    if _filler_mulaw:
+        parts.append(random.choice(_filler_mulaw))
+
+    if _keyboard_mulaw:
+        chunk_samples = (duration_ms * MULAW_SAMPLE_RATE) // 1000
+        max_start = len(_keyboard_mulaw) - chunk_samples
+        if max_start > 0:
+            start = random.randint(0, max_start)
+            parts.append(_keyboard_mulaw[start:start + chunk_samples])
+
+    return b"".join(parts)
 
 
 class CallState(enum.Enum):
@@ -62,11 +110,13 @@ async def incoming_call(request: Request) -> Response:
 @router.websocket("/ws/media-stream/{tenant_id}")
 async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
     await ws.accept()
-    voice_pipeline = getattr(ws.app.state, "voice_pipeline", None)
-    if not voice_pipeline:
-        logger.error("[Voice] Pipeline no disponible, cerrando WebSocket")
-        await ws.close()
-        return
+
+    # Load hold audio on first connection
+    if not _filler_mulaw and not _keyboard_mulaw:
+        _load_hold_audio()
+
+    # Import VAD (lazy to avoid numpy dep at module level)
+    from src.app.services.vad import SileroVAD, TurnDetector
 
     vad = SileroVAD(threshold=0.5, sample_rate=MULAW_SAMPLE_RATE)
     turn_detector = TurnDetector(
@@ -101,12 +151,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                     prob = vad.process_chunk(mulaw_chunk)
                     if prob is not None and prob >= 0.5:
                         await ws.send_text(
-                            json.dumps(
-                                {
-                                    "event": "clear",
-                                    "streamSid": stream_sid,
-                                }
-                            )
+                            json.dumps({"event": "clear", "streamSid": stream_sid})
                         )
                         state = CallState.LISTENING
                         turn_detector.reset_turn()
@@ -115,10 +160,20 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 utterance_audio = turn_detector.feed(mulaw_chunk)
                 if utterance_audio:
                     state = CallState.PROCESSING
-                    response_audio = await _process_and_synthesize_tenant(
-                        utterance_audio, voice_pipeline, ws, tenant_id, caller_id
+
+                    # Send hold audio while processing
+                    hold_mulaw = _get_hold_mulaw(3000)
+                    if hold_mulaw:
+                        asyncio.create_task(_send_audio(ws, stream_sid, hold_mulaw))
+
+                    response_audio = await _process_utterance(
+                        utterance_audio, ws, tenant_id, caller_id
                     )
                     if response_audio:
+                        # Clear hold audio before sending response
+                        await ws.send_text(
+                            json.dumps({"event": "clear", "streamSid": stream_sid})
+                        )
                         state = CallState.SPEAKING
                         await _send_audio(ws, stream_sid, response_audio)
                     else:
@@ -145,24 +200,29 @@ async def media_stream(ws: WebSocket) -> None:
     await media_stream_tenant(ws, settings.tenant_id)
 
 
-async def _process_and_synthesize_tenant(
+async def _process_utterance(
     mulaw_audio: bytes,
-    voice_pipeline: Any,
     ws: WebSocket,
     tenant_id: str,
     caller_id: str = "",
 ) -> bytes | None:
+    """STT → LLM → TTS pipeline via OpenRouter (no local GPU needed)."""
+    http_client = ws.app.state.http_client
+    redis = ws.app.state.redis
+    api_key = settings.openrouter_api_key
+
+    # µ-law → PCM 16kHz
     pcm_8k = audioop.ulaw2lin(mulaw_audio, 2)
     pcm_16k, _ = audioop.ratecv(pcm_8k, 2, 1, MULAW_SAMPLE_RATE, WHISPER_SAMPLE_RATE, None)
 
-    text = voice_pipeline.transcribe_pcm(pcm_16k)
+    # STT
+    stt = OpenRouterSTT(http_client, api_key, model=settings.stt_model)
+    text = await stt.transcribe_pcm(pcm_16k, sample_rate=WHISPER_SAMPLE_RATE)
     if not text.strip():
         return None
-
     logger.info(f"[Voice:{tenant_id}] Transcrito: {text[:80]}")
 
-    http_client = ws.app.state.http_client
-    redis = ws.app.state.redis
+    # LLM
     tenant = await load_tenant_async(tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant_id)
     tools = get_tools_for_tenant(tenant, channel=Channel.CALL)
@@ -175,7 +235,7 @@ async def _process_and_synthesize_tenant(
     )
 
     session_key = f"{tenant_id}:{caller_id or 'voice_anonymous'}"
-    history = []
+    history: list[Any] = []
     if redis:
         try:
             session = SessionManager(redis, llm=llm)
@@ -194,23 +254,22 @@ async def _process_and_synthesize_tenant(
         except Exception:
             pass
 
-    tts_bytes = await voice_pipeline.synthesize(result.response)
-    if not tts_bytes:
+    # TTS
+    tts = OpenRouterTTS(
+        http_client, api_key,
+        model=settings.tts_model,
+        voice=settings.tts_voice,
+        speed=settings.tts_speed,
+    )
+    mp3_bytes = await tts.synthesize(result.response)
+    if not mp3_bytes:
         return None
 
-    return _mp3_to_mulaw(tts_bytes)
-
-
-async def _process_and_synthesize(
-    mulaw_audio: bytes,
-    voice_pipeline: Any,
-    ws: WebSocket,
-) -> bytes | None:
-    return await _process_and_synthesize_tenant(mulaw_audio, voice_pipeline, ws, settings.tenant_id)
+    return _mp3_to_mulaw(mp3_bytes)
 
 
 def _mp3_to_mulaw(mp3_bytes: bytes) -> bytes:
-    """Convert MP3 to mulaw 8kHz using pydub (in-memory, no ffmpeg CLI)."""
+    """Convert MP3 to mulaw 8kHz for Twilio."""
     import io
 
     from pydub import AudioSegment
