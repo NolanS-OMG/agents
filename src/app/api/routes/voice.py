@@ -35,18 +35,24 @@ WHISPER_SAMPLE_RATE = 16000
 AUDIO_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "audio"
 FILLERS_DIR = AUDIO_DIR / "fillers"
 GREETINGS_DIR = AUDIO_DIR / "greetings"
+FAREWELL_SOUND = AUDIO_DIR / "farewell.mp3"
 KEYBOARD_SOUND = AUDIO_DIR / "keyboard_sound.mp3"
 KEYBOARD_BOOST_DB = 10
+
+HANGUP_AFTER_FAREWELL = False
+
+FAREWELL_TRIGGERS = {"adiós", "adios", "hasta luego", "bye", "chao", "nos vemos"}
 
 _filler_mulaw: list[bytes] = []
 _greeting_mulaw: list[tuple[str, bytes]] = []
 _keyboard_mulaw: bytes = b""
+_farewell_mulaw: bytes = b""
 _used_fillers: list[int] = []
 
 
 def _load_hold_audio() -> None:
-    """Pre-load filler, greeting, and keyboard audio as mulaw."""
-    global _filler_mulaw, _keyboard_mulaw, _greeting_mulaw
+    """Pre-load filler, greeting, farewell, and keyboard audio as mulaw."""
+    global _filler_mulaw, _keyboard_mulaw, _greeting_mulaw, _farewell_mulaw
 
     try:
         from pydub import AudioSegment
@@ -64,6 +70,11 @@ def _load_hold_audio() -> None:
                 # Extract the greeting text from filename for history injection
                 text = f.stem.replace("_", " ")
                 _greeting_mulaw.append((text, audioop.lin2ulaw(audio.raw_data, 2)))
+
+        if FAREWELL_SOUND.exists():
+            audio = AudioSegment.from_mp3(str(FAREWELL_SOUND))
+            audio = audio.set_frame_rate(MULAW_SAMPLE_RATE).set_channels(1).set_sample_width(2)
+            _farewell_mulaw = audioop.lin2ulaw(audio.raw_data, 2)
 
         if KEYBOARD_SOUND.exists():
             audio = AudioSegment.from_mp3(str(KEYBOARD_SOUND))
@@ -218,7 +229,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                     if hold_mulaw:
                         asyncio.create_task(_send_audio(ws, stream_sid, hold_mulaw))
 
-                    response_audio = await _process_utterance(
+                    response_audio, user_text = await _process_utterance(
                         utterance_audio, ws, tenant_id, caller_id
                     )
                     if response_audio:
@@ -228,6 +239,15 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                         )
                         state = CallState.SPEAKING
                         await _send_audio(ws, stream_sid, response_audio)
+
+                        # Detect farewell — play goodbye audio after response
+                        user_lower = user_text.lower().strip()
+                        is_farewell = any(t in user_lower for t in FAREWELL_TRIGGERS)
+                        if is_farewell and _farewell_mulaw:
+                            await _send_audio(ws, stream_sid, _farewell_mulaw)
+                            if HANGUP_AFTER_FAREWELL:
+                                logger.info(f"[Voice:{tenant_id}] Farewell detected, closing")
+                                break
                     else:
                         state = CallState.LISTENING
 
@@ -257,8 +277,8 @@ async def _process_utterance(
     ws: WebSocket,
     tenant_id: str,
     caller_id: str = "",
-) -> bytes | None:
-    """STT → LLM → TTS pipeline via OpenRouter (no local GPU needed)."""
+) -> tuple[bytes | None, str]:
+    """STT → LLM → TTS pipeline. Returns (mulaw_audio, user_text)."""
     http_client = ws.app.state.http_client
     redis = ws.app.state.redis
     api_key = settings.openrouter_api_key
@@ -271,7 +291,7 @@ async def _process_utterance(
     stt = OpenRouterSTT(http_client, api_key, model=settings.stt_model)
     text = await stt.transcribe_pcm(pcm_16k, sample_rate=WHISPER_SAMPLE_RATE)
     if not text.strip():
-        return None
+        return None, ""
     logger.info(f"[Voice:{tenant_id}] Transcrito: {text[:80]}")
 
     # LLM
@@ -315,9 +335,9 @@ async def _process_utterance(
     )
     mp3_bytes = await tts.synthesize(result.response)
     if not mp3_bytes:
-        return None
+        return None, text
 
-    return _mp3_to_mulaw(mp3_bytes)
+    return _mp3_to_mulaw(mp3_bytes), text
 
 
 def _mp3_to_mulaw(mp3_bytes: bytes) -> bytes:
