@@ -2,10 +2,9 @@
 set -euo pipefail
 
 # Deploy script for VPS
-# Usage:
-#   1. Clone repo on VPS
-#   2. Create .env with production values
-#   3. Run: ./deploy.sh
+# Usage: ./deploy.sh
+#   - Pulls latest code, rebuilds, migrates, seeds.
+#   - First time: create .env first.
 
 echo "=== Agente IA — Deploy ==="
 
@@ -28,7 +27,11 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Build and start
+# Pull latest
+echo ">> Pulling latest changes..."
+git pull --ff-only
+
+# Build and restart
 echo ">> Building and starting containers..."
 docker compose up --build -d
 
@@ -41,16 +44,13 @@ echo ">> Running migrations..."
 docker compose exec api python -m aerich upgrade 2>/dev/null || \
     docker compose exec api python -m aerich init-db 2>/dev/null || true
 
-# Seed santa_lena data
-echo ">> Seeding Santa Leña data..."
+# Seed (idempotent — updates existing, creates missing)
+echo ">> Seeding Santa Leña..."
 docker compose exec api python scripts/seed_santa_lena.py
 
 echo ""
 echo "=== Deploy complete ==="
 echo "  API:    http://$(hostname -I | awk '{print $1}'):8000"
 echo "  Health: http://$(hostname -I | awk '{print $1}'):8000/health"
-echo ""
-echo "  Twilio webhook (voice): https://<your-domain>/incoming-call/santa_lena"
-echo "  Twilio webhook (WA):    https://<your-domain>/webhook/twilio-whatsapp/santa_lena"
 echo ""
 echo "  Logs: docker compose logs -f api"
