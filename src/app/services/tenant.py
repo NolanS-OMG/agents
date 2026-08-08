@@ -107,33 +107,31 @@ class TenantConfig:
         parts: list[str] = []
 
         if self._is_legacy:
-            info = self._find_doc_legacy("Negocio")
-            promos = self._find_doc_legacy("Promociones")
-            if info:
-                parts.append(info.body)
-            if promos:
-                parts.append(promos.body)
-            parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
             estilo_doc = self._find_estilo_legacy(estilo)
             if estilo_doc:
-                parts.append(f"\nESTILO DE COMUNICACIÓN:\n{estilo_doc.body}")
+                parts.append(f"ESTILO:\n{estilo_doc.body}")
+            info = self._find_doc_legacy("Negocio")
+            if info:
+                parts.append(f"NEGOCIO:\n{info.body}")
+            parts.append(f"DOCUMENTOS DISPONIBLES:\n{self.index}")
         else:
+            prompt_obj = next((p for p in self.prompts if p.estilo == estilo), None)
+            if prompt_obj:
+                parts.append(f"ESTILO:\n{prompt_obj.system_prompt}")
+
             negocio_doc = next((d for d in self.docs if d.doc_type == "negocio"), None)
             if negocio_doc:
                 content = self.read_doc(negocio_doc.slug)
                 if content:
-                    parts.append(content)
-            promo_doc = next((d for d in self.docs if d.doc_type == "promociones"), None)
-            if promo_doc:
-                content = self.read_doc(promo_doc.slug)
-                if content:
-                    parts.append(content)
-            parts.append(f"\nÍNDICE DE DOCUMENTOS DISPONIBLES:\n{self.index}")
-            prompt = next((p for p in self.prompts if p.estilo == estilo), None)
-            if prompt:
-                parts.append(f"\nESTILO DE COMUNICACIÓN:\n{prompt.system_prompt}")
+                    parts.append(f"NEGOCIO:\n{content}")
+
+            parts.append(f"DOCUMENTOS DISPONIBLES:\n{self._build_slug_list()}")
 
         return "\n\n".join(parts)
+
+    def _build_slug_list(self) -> str:
+        slugs = [doc.slug for doc in self.docs if doc.doc_type not in ("negocio", "promociones")]
+        return ", ".join(slugs)
 
     def read_doc(self, ruta: str) -> str | None:
         if self._is_legacy:

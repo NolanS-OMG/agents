@@ -10,11 +10,7 @@ class TransferirHumano(BaseTool):
 
     @property
     def description(self) -> str:
-        return (
-            "Transfiere la conversación a un agente humano. "
-            "Usa cuando el cliente está frustrado, pide hablar con una persona, "
-            "o el problema no se puede resolver con las herramientas disponibles."
-        )
+        return "Transfiere a un agente humano cuando el cliente está frustrado o el problema no se puede resolver."
 
     async def execute(self, **kwargs: Any) -> ToolResult:
         motivo = kwargs.get("motivo", "No especificado")

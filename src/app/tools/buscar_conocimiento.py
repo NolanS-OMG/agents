@@ -19,12 +19,7 @@ class BuscarConocimiento(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Reads one or more documents from the knowledge base by slug. "
-            "Use this to retrieve detailed information about projects, professional experience, "
-            "tech stack, or any topic the user asks about. "
-            "Always search before answering questions about specific topics — do not guess "
-            "from memory. Available document slugs are listed in the DOCUMENTOS DISPONIBLES "
-            "section of your instructions."
+            "Lee documentos por slug. Usa siempre antes de responder sobre platillos específicos."
         )
 
     async def execute(self, **kwargs: Any) -> ToolResult:

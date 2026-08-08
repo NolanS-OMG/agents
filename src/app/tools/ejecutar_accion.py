@@ -20,13 +20,7 @@ class EjecutarAccion(BaseTool):
 
     @property
     def description(self) -> str:
-        return (
-            "Ejecuta una acción transaccional solicitada explícitamente por el usuario: "
-            "pedidos a domicilio, pedidos para recoger, reservaciones, citas. "
-            "Usa esta tool SOLO cuando el usuario pide realizar una operación que requiere "
-            "recopilar datos (nombre, dirección, items, fecha, hora, etc). "
-            "NO la uses para mostrar información o enriquecer la experiencia visual."
-        )
+        return "Ejecuta pedidos o reservaciones. Recopila datos antes de llamar."
 
     async def execute(self, **kwargs: Any) -> ToolResult | ToolError:
         categoria = kwargs.get("categoria")
