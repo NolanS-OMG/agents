@@ -22,9 +22,10 @@ dependencies = [
     "aerich>=0.7,<0.8",
     "cryptography>=44.0.0",
     "python-multipart>=0.0.9",
-    "sounddevice>=0.5.5",
     "numpy>=1.26.0",
     "pydub>=0.25.1",
+    "onnxruntime>=1.18.0",
+    "audioop-lts>=0.2.1; python_version>='3.13'",
 ]
 
 [project.optional-dependencies]

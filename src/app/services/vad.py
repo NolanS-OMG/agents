@@ -9,14 +9,40 @@ with warnings.catch_warnings():
     import audioop
 
 import numpy as np
-from faster_whisper.vad import get_vad_model
 
 if TYPE_CHECKING:
     import onnxruntime
 
+_VAD_MODEL_URL = "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx"
+_vad_session: "onnxruntime.InferenceSession | None" = None
+
+
+def _get_vad_session() -> "onnxruntime.InferenceSession":
+    """Load Silero VAD ONNX model (cached after first call)."""
+    global _vad_session
+    if _vad_session is not None:
+        return _vad_session
+
+    import urllib.request
+    from pathlib import Path
+
+    import onnxruntime
+
+    cache_dir = Path("/tmp/silero_vad")
+    cache_dir.mkdir(exist_ok=True)
+    model_path = cache_dir / "silero_vad.onnx"
+
+    if not model_path.exists():
+        urllib.request.urlretrieve(_VAD_MODEL_URL, str(model_path))
+
+    _vad_session = onnxruntime.InferenceSession(
+        str(model_path), providers=["CPUExecutionProvider"]
+    )
+    return _vad_session
+
 
 class SileroVAD:
-    """Streaming Voice Activity Detection using Silero VAD v6 (from faster-whisper)."""
+    """Streaming Voice Activity Detection using Silero VAD (ONNX)."""
 
     def __init__(self, threshold: float = 0.5, sample_rate: int = 8000) -> None:
         self.threshold = threshold
@@ -24,8 +50,7 @@ class SileroVAD:
         self._num_samples = 512
         self._context_size = 64
 
-        model = get_vad_model()
-        self._session: onnxruntime.InferenceSession = model.session
+        self._session = _get_vad_session()
 
         self._h = np.zeros((1, 1, 128), dtype=np.float32)
         self._c = np.zeros((1, 1, 128), dtype=np.float32)
