@@ -131,7 +131,9 @@ class CallState(enum.Enum):
 @router.post("/incoming-call/{tenant_id}")
 async def incoming_call_tenant(request: Request, tenant_id: str) -> Response:
     host = request.headers.get("host", "localhost")
-    scheme = "wss" if request.url.scheme == "https" else "ws"
+    # Use wss if behind reverse proxy (X-Forwarded-Proto) or direct HTTPS
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    scheme = "wss" if proto == "https" else "ws"
     stream_url = f"{scheme}://{host}/ws/media-stream/{tenant_id}"
 
     # Connect to stream immediately — greeting is sent as audio via WebSocket
