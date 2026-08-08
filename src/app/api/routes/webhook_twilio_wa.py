@@ -136,7 +136,7 @@ async def _process(
             return
 
     tenant = await load_tenant_async(tenant_id, redis)
-    llm = get_llm_provider(http_client)
+    llm = await get_llm_provider(http_client)
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
         llm=llm, tools=tools,

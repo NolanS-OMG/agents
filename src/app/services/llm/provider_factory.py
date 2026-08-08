@@ -67,8 +67,8 @@ async def get_llm_provider(
             api_key = settings.openai_api_key
         elif provider == "deepseek":
             api_key = settings.deepseek_api_key
-        elif provider == "openrouter" and not api_key:
-            api_key = settings.llm_api_key
+        elif provider == "openrouter":
+            api_key = settings.openrouter_api_key or settings.llm_api_key
         elif provider == "groq" and not api_key:
             api_key = settings.llm_api_key
 

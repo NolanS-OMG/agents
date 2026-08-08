@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     deepseek_api_key: str = Field(default="")
     openai_api_key: str = Field(default="")
+    openrouter_api_key: str = Field(default="")
 
     voice_enabled: bool = Field(default=False)
     whisper_model: str = Field(default="large-v3")
