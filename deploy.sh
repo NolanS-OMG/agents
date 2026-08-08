@@ -31,7 +31,11 @@ fi
 echo ">> Pulling latest changes..."
 git pull --ff-only
 
-# Build and restart
+# Stop existing containers (free ports)
+echo ">> Stopping existing containers..."
+docker compose down --remove-orphans
+
+# Build and start
 echo ">> Building and starting containers..."
 docker compose up --build -d
 
