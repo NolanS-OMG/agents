@@ -52,10 +52,6 @@ echo ">> Running migrations..."
 docker compose exec api python -m aerich upgrade 2>/dev/null || \
     docker compose exec api python -m aerich init-db 2>/dev/null || true
 
-# Seed (idempotent — updates existing, creates missing)
-echo ">> Seeding Santa Leña..."
-docker compose exec api python scripts/seed_santa_lena.py
-
 echo ""
 echo "=== Deploy complete ==="
 echo "  API:    http://$(hostname -I | awk '{print $1}'):8000"
