@@ -23,6 +23,8 @@ dependencies = [
     "cryptography>=44.0.0",
     "python-multipart>=0.0.9",
     "sounddevice>=0.5.5",
+    "numpy>=1.26.0",
+    "pydub>=0.25.1",
 ]
 
 [project.optional-dependencies]
