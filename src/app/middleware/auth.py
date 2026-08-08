@@ -16,6 +16,7 @@ EXCLUDED_PREFIXES = (
     "/docs",
     "/openapi.json",
     "/webhook/whatsapp",
+    "/webhook/twilio-whatsapp",
     "/incoming-call",
     "/ws/",
     "/api/v1/sessions/",

@@ -1,7 +1,7 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-import logging
 
 from src.app.api.routes import (
     analytics,
@@ -13,6 +13,7 @@ from src.app.api.routes import (
     sse,
     usage,
     webhook,
+    webhook_twilio_wa,
     websocket,
 )
 from src.app.core.config import settings
@@ -57,6 +58,8 @@ app.include_router(knowledge.router)
 app.include_router(prompts.router)
 app.include_router(usage.router)
 app.include_router(webhook.router)
+app.include_router(webhook_twilio_wa.router)
+
 app.include_router(analytics.router)
 
 if settings.voice_enabled:

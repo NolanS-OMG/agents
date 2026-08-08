@@ -48,7 +48,7 @@ async def test_missing_api_key_returns_401() -> None:
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post("/api/v1/converse", json={"message": "hola"})
     assert resp.status_code == 401
-    assert resp.json()["detail"] == "API key required"
+    assert resp.json()["message"] == "API key required"
 
 
 @pytest.mark.anyio
@@ -63,7 +63,7 @@ async def test_invalid_api_key_returns_401() -> None:
                 headers={"X-API-Key": "sk_invalid_key_that_doesnt_exist"},
             )
         assert resp.status_code == 401
-        assert resp.json()["detail"] == "Invalid API key"
+        assert resp.json()["message"] == "Invalid API key"
     finally:
         await _teardown_db()
 
