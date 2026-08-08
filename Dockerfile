@@ -19,8 +19,15 @@ RUN addgroup --system app && adduser --system --ingroup app app
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
+COPY storage/ /app/storage/
+COPY audio/ /app/audio/
+COPY scripts/ /app/scripts/
+COPY migrations/ /app/migrations/
+COPY pyproject.toml /app/pyproject.toml
 
 RUN mkdir -p /app/data && chown app:app /app/data
 

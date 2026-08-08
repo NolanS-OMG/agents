@@ -7,7 +7,7 @@ services:
       - .env
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgres://agente:dev_password_123@postgres:5432/agente_ia
+      - DATABASE_URL=postgres://agente:${POSTGRES_PASSWORD:-dev_password_123}@postgres:5432/agente_ia
     depends_on:
       redis:
         condition: service_healthy
@@ -17,8 +17,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -33,9 +31,7 @@ services:
     environment:
       POSTGRES_DB: agente_ia
       POSTGRES_USER: agente
-      POSTGRES_PASSWORD: dev_password_123
-    ports:
-      - "5434:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
