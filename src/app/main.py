@@ -1,9 +1,7 @@
 import logging
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from src.app.api.routes import (
     analytics,
@@ -71,7 +69,3 @@ if settings.voice_enabled:
     except ImportError:
         logger.warning("Voice dependencies not available, voice routes disabled")
 
-# Serve audio files (greetings, fillers) as static for Twilio <Play>
-_audio_dir = Path(__file__).resolve().parent.parent.parent / "audio"
-if _audio_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(_audio_dir)), name="static")

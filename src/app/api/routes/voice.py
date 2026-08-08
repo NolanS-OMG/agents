@@ -134,12 +134,9 @@ async def incoming_call_tenant(request: Request, tenant_id: str) -> Response:
     scheme = "wss" if request.url.scheme == "https" else "ws"
     stream_url = f"{scheme}://{host}/ws/media-stream/{tenant_id}"
 
-    # Use pre-recorded greeting audio instead of robotic <Say>
-    greeting_url = f"{request.url.scheme}://{host}/static/greetings/bienvenida_1.mp3"
-
+    # Connect to stream immediately — greeting is sent as audio via WebSocket
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Play>{greeting_url}</Play>
     <Connect>
         <Stream url="{stream_url}" />
     </Connect>
@@ -189,18 +186,24 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 custom = start_data.get("customParameters", {})
                 caller_id = custom.get("From", "") or start_data.get("callSid", stream_sid)
 
-                # Inject greeting into session history so LLM knows it already greeted
+                # Send pre-recorded greeting via WebSocket audio
+                greeting_text = random.choice(GREETING_TEXTS)
+                if _greeting_mulaw:
+                    greeting_idx = GREETING_TEXTS.index(greeting_text) % len(_greeting_mulaw)
+                    _, greeting_audio = _greeting_mulaw[greeting_idx]
+                    await _send_audio(ws, stream_sid, greeting_audio)
+                    state = CallState.SPEAKING
+
+                # Inject greeting into session history so LLM won't re-greet
                 redis = ws.app.state.redis
                 if redis:
-                    greeting_text = random.choice(GREETING_TEXTS)
                     session_key = f"{tenant_id}:{caller_id or 'voice_anonymous'}"
                     try:
                         from src.app.services.llm.base import LLMMessage
                         from src.app.services.llm.provider_factory import get_llm_provider
-                        from src.app.services.session import SessionManager
-                        llm = await get_llm_provider(ws.app.state.http_client, tenant_id=tenant_id)
-                        session = SessionManager(redis, llm=llm)
-                        await session.save_history(session_key, [
+                        session_mgr = SessionManager(redis, llm=await get_llm_provider(
+                            ws.app.state.http_client, tenant_id=tenant_id))
+                        await session_mgr.save_history(session_key, [
                             LLMMessage(role="assistant", content=greeting_text),
                         ])
                     except Exception as e:
