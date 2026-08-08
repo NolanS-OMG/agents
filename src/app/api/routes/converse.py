@@ -102,7 +102,11 @@ async def converse(
     tenant_config = await load_tenant_async(tenant.tenant_id, redis)
     llm = await get_llm_provider(http_client, tenant_id=tenant.tenant_id)
     tools = get_tools_for_tenant(tenant_config, channel=Channel.CALL)
-    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_config.get_prompt(estilo))
+    agent = AgentRouter(
+        llm=llm, tools=tools,
+        tenant_prompt=tenant_config.get_prompt(estilo),
+        tenant_id=tenant.tenant_id,
+    )
 
     session_key = f"{tenant.tenant_id}:{conversant_id}"
     history = []

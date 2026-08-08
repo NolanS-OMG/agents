@@ -140,8 +140,9 @@ async def _process(
     tools = get_tools_for_tenant(tenant)
     agent = AgentRouter(
         llm=llm, tools=tools,
-        tenant_prompt=tenant.get_prompt("chat"),
+        tenant_prompt=tenant.get_prompt("voz"),
         sender_id=incoming.sender_id,
+        tenant_id=tenant_id,
     )
 
     session_key = f"{tenant_id}:{incoming.sender_id}"

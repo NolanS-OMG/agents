@@ -171,6 +171,7 @@ async def _process_and_synthesize_tenant(
         tools=tools,
         tenant_prompt=tenant.get_prompt("voz"),
         sender_id=caller_id,
+        tenant_id=tenant_id,
     )
 
     session_key = f"{tenant_id}:{caller_id or 'voice_anonymous'}"

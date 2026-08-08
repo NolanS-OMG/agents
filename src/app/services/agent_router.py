@@ -1,9 +1,11 @@
+import asyncio
 import json
 import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.app.services.event_tracker import track_llm_call
 from src.app.services.llm.base import LLMMessage, LLMProvider, LLMResponse
 from src.app.tools.base import BaseTool, ToolError, ToolResult
 
@@ -45,10 +47,12 @@ class AgentRouter:
         tools: list[BaseTool],
         tenant_prompt: str = "",
         sender_id: str = "",
+        tenant_id: str = "",
     ) -> None:
         self._llm = llm
         self._tools = {tool.name: tool for tool in tools}
         self._tool_schemas = [tool.schema() for tool in tools]
+        self._tenant_id = tenant_id
         self._system_prompt = BASE_SYSTEM_PROMPT.format(sender_id=sender_id or "desconocido")
         if tenant_prompt:
             self._system_prompt += f"\n\nCONTEXTO DEL NEGOCIO:\n{tenant_prompt}"
@@ -66,13 +70,25 @@ class AgentRouter:
         last_response: LLMResponse | None = None
 
         for _ in range(MAX_TOOL_ITERATIONS):
+            t_llm = time.time()
             response = await self._llm.complete(
                 messages=messages,
                 tools=self._tool_schemas,
             )
+            llm_ms = int((time.time() - t_llm) * 1000)
             total_llm_calls += 1
             total_cost += response.cost_usd
             last_response = response
+
+            if self._tenant_id:
+                asyncio.create_task(track_llm_call(
+                    tenant_id=self._tenant_id,
+                    model=response.model,
+                    input_tokens=response.usage.get("prompt_tokens", 0),
+                    output_tokens=response.usage.get("completion_tokens", 0),
+                    latency_ms=llm_ms,
+                    cost_usd=response.cost_usd,
+                ))
 
             if not response.tool_calls:
                 content = response.content or "Lo siento, no pude generar una respuesta."

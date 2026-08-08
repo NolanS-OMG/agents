@@ -112,7 +112,7 @@ async def chat(
     else:
         tenant_prompt += "\n\nIMPORTANT: Always respond in English."
 
-    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_prompt)
+    agent = AgentRouter(llm=llm, tools=tools, tenant_prompt=tenant_prompt, tenant_id=tenant_ctx.tenant_id)
 
     metadata = {
         "ip_address": request.headers.get("x-forwarded-for", "").split(",")[0].strip()

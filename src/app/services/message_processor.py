@@ -83,6 +83,7 @@ async def process_and_reply(
         tools=tools,
         tenant_prompt=tenant.get_prompt(estilo),
         sender_id=incoming.sender_id,
+        tenant_id=tenant_id,
     )
 
     session_key = f"{tenant_id}:{incoming.sender_id}"
