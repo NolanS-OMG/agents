@@ -110,16 +110,25 @@ class TurnDetector:
         self._speech_ms = 0
         self._silence_ms = 0
 
+    _log_counter: int = 0
+
     def feed(self, mulaw_chunk: bytes) -> bytes | None:
         """Feed a 20ms mulaw chunk. Returns audio when end-of-turn detected."""
         prob = self._vad.process_chunk(mulaw_chunk)
         if prob is None:
-            # Not enough samples for a VAD frame yet, buffer anyway
             if self._is_speaking:
                 self._speech_buffer.extend(mulaw_chunk)
             else:
                 self._pre_buffer.append(mulaw_chunk)
             return None
+
+        self._log_counter += 1
+        if self._log_counter <= 5 or (prob > 0.1 and self._log_counter % 10 == 0):
+            import logging
+            logging.getLogger(__name__).info(
+                f"[VAD] prob={prob:.4f} speaking={self._is_speaking} "
+                f"speech_ms={self._speech_ms} silence_ms={self._silence_ms}"
+            )
 
         is_speech = prob >= self._vad.threshold
 
