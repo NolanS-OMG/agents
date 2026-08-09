@@ -42,10 +42,10 @@ def _get_vad_session() -> "onnxruntime.InferenceSession":
 
 
 class SileroVAD:
-    """Streaming Voice Activity Detection using Silero VAD v5 (ONNX)."""
+    """Streaming Voice Activity Detection using Silero VAD (ONNX, 8kHz native)."""
 
-    SAMPLE_RATE = 16000
-    WINDOW_SAMPLES = 512
+    SAMPLE_RATE = 8000
+    WINDOW_SAMPLES = 256
 
     def __init__(self, threshold: float = 0.5, sample_rate: int = 8000) -> None:
         self.threshold = threshold
@@ -53,16 +53,14 @@ class SileroVAD:
 
         self._session = _get_vad_session()
 
-        # Silero v5 state: single tensor (2, 1, 128)
         self._state = np.zeros((2, 1, 128), dtype=np.float32)
-        self._sr = np.array([self.SAMPLE_RATE], dtype=np.int64)
+        self._sr = np.array(self.SAMPLE_RATE, dtype=np.int64)
         self._accumulator = np.array([], dtype=np.float32)
 
     def process_chunk(self, mulaw_bytes: bytes) -> float | None:
         """Feed mulaw 8kHz audio. Returns speech probability when a frame is ready."""
         pcm_8k = audioop.ulaw2lin(mulaw_bytes, 2)
-        pcm_16k, _ = audioop.ratecv(pcm_8k, 2, 1, 8000, self.SAMPLE_RATE, None)
-        samples = np.frombuffer(pcm_16k, dtype=np.int16).astype(np.float32) / 32768.0
+        samples = np.frombuffer(pcm_8k, dtype=np.int16).astype(np.float32) / 32768.0
         self._accumulator = np.concatenate([self._accumulator, samples])
 
         if len(self._accumulator) < self.WINDOW_SAMPLES:

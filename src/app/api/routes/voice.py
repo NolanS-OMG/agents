@@ -163,7 +163,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
     # Import VAD (lazy to avoid numpy dep at module level)
     from src.app.services.vad import SileroVAD, TurnDetector
 
-    vad = SileroVAD(threshold=0.5, sample_rate=MULAW_SAMPLE_RATE)
+    vad = SileroVAD(threshold=0.3, sample_rate=MULAW_SAMPLE_RATE)
     turn_detector = TurnDetector(
         vad=vad,
         end_of_turn_ms=settings.vad_silence_ms,
