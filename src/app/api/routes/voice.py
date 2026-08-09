@@ -163,12 +163,12 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
     # Import VAD (lazy to avoid numpy dep at module level)
     from src.app.services.vad import SileroVAD, TurnDetector
 
-    vad = SileroVAD(threshold=0.3, sample_rate=MULAW_SAMPLE_RATE)
+    vad = SileroVAD(threshold=0.25, sample_rate=MULAW_SAMPLE_RATE)
     turn_detector = TurnDetector(
         vad=vad,
         end_of_turn_ms=settings.vad_silence_ms,
-        min_speech_ms=150,
-        prefix_padding_ms=300,
+        min_speech_ms=80,
+        prefix_padding_ms=400,
     )
 
     stream_sid = ""
@@ -215,14 +215,6 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 payload = msg.get("media", {}).get("payload", "")
                 mulaw_chunk = base64.b64decode(payload)
 
-                if not hasattr(media_stream_tenant, "_chunk_count"):
-                    media_stream_tenant._chunk_count = 0
-                media_stream_tenant._chunk_count += 1
-                if media_stream_tenant._chunk_count <= 3 or media_stream_tenant._chunk_count % 100 == 0:
-                    logger.info(
-                        f"[Voice:{tenant_id}] media chunk #{media_stream_tenant._chunk_count} "
-                        f"state={state.value} bytes={len(mulaw_chunk)}"
-                    )
 
                 if state == CallState.SPEAKING:
                     prob = vad.process_chunk(mulaw_chunk)
@@ -368,7 +360,7 @@ def _mp3_to_mulaw(mp3_bytes: bytes) -> bytes:
 
 
 async def _send_audio(ws: WebSocket, stream_sid: str, mulaw_data: bytes) -> None:
-    """Send mulaw audio to Twilio in 20ms chunks."""
+    """Send mulaw audio to Twilio. No pacing needed — Twilio buffers and plays in order."""
     chunk_size = 160  # 20ms at 8kHz
     for i in range(0, len(mulaw_data), chunk_size):
         chunk = mulaw_data[i : i + chunk_size]
@@ -382,7 +374,9 @@ async def _send_audio(ws: WebSocket, stream_sid: str, mulaw_data: bytes) -> None
                 }
             )
         )
-        await asyncio.sleep(0.018)
+        # Yield to event loop every 50 chunks to avoid starving other tasks
+        if (i // chunk_size) % 50 == 49:
+            await asyncio.sleep(0)
 
     await ws.send_text(
         json.dumps(

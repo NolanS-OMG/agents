@@ -107,6 +107,7 @@ class TurnDetector:
         self._is_speaking = False
         self._speech_ms = 0
         self._silence_ms = 0
+        self._no_speech_ms = 0
 
     _log_counter: int = 0
 
@@ -134,12 +135,17 @@ class TurnDetector:
             self._pre_buffer.append(mulaw_chunk)
             if is_speech:
                 self._speech_ms += self._chunk_ms
+                self._no_speech_ms = 0
                 if self._speech_ms >= self._min_speech_ms:
                     self._is_speaking = True
                     for frame in self._pre_buffer:
                         self._speech_buffer.extend(frame)
             else:
-                self._speech_ms = 0
+                # Forgiveness: don't reset on a single low frame
+                self._no_speech_ms += self._chunk_ms
+                if self._no_speech_ms >= 60:
+                    self._speech_ms = 0
+                    self._no_speech_ms = 0
         else:
             self._speech_buffer.extend(mulaw_chunk)
             if is_speech:
