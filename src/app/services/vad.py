@@ -42,52 +42,47 @@ def _get_vad_session() -> "onnxruntime.InferenceSession":
 
 
 class SileroVAD:
-    """Streaming Voice Activity Detection using Silero VAD (ONNX)."""
+    """Streaming Voice Activity Detection using Silero VAD v5 (ONNX)."""
+
+    SAMPLE_RATE = 16000
+    WINDOW_SAMPLES = 512
 
     def __init__(self, threshold: float = 0.5, sample_rate: int = 8000) -> None:
         self.threshold = threshold
         self.sample_rate = sample_rate
-        self._num_samples = 512
-        self._context_size = 64
 
         self._session = _get_vad_session()
 
-        self._h = np.zeros((1, 1, 128), dtype=np.float32)
-        self._c = np.zeros((1, 1, 128), dtype=np.float32)
-        self._context = np.zeros((1, self._context_size), dtype=np.float32)
+        # Silero v5 state: single tensor (2, 1, 128)
+        self._state = np.zeros((2, 1, 128), dtype=np.float32)
+        self._sr = np.array([self.SAMPLE_RATE], dtype=np.int64)
         self._accumulator = np.array([], dtype=np.float32)
 
     def process_chunk(self, mulaw_bytes: bytes) -> float | None:
         """Feed mulaw 8kHz audio. Returns speech probability when a frame is ready."""
         pcm_8k = audioop.ulaw2lin(mulaw_bytes, 2)
-        pcm_16k, _ = audioop.ratecv(pcm_8k, 2, 1, 8000, 16000, None)
+        pcm_16k, _ = audioop.ratecv(pcm_8k, 2, 1, 8000, self.SAMPLE_RATE, None)
         samples = np.frombuffer(pcm_16k, dtype=np.int16).astype(np.float32) / 32768.0
         self._accumulator = np.concatenate([self._accumulator, samples])
 
-        if len(self._accumulator) < self._num_samples:
+        if len(self._accumulator) < self.WINDOW_SAMPLES:
             return None
 
-        frame = self._accumulator[: self._num_samples]
-        self._accumulator = self._accumulator[self._num_samples :]
+        frame = self._accumulator[: self.WINDOW_SAMPLES]
+        self._accumulator = self._accumulator[self.WINDOW_SAMPLES :]
         return self._run_inference(frame)
 
     def _run_inference(self, frame: np.ndarray) -> float:
-        input_data = np.concatenate([self._context.flatten(), frame]).reshape(
-            1, self._num_samples + self._context_size
-        )
+        input_data = frame.reshape(1, self.WINDOW_SAMPLES)
 
-        self._context = frame[-self._context_size :].reshape(1, self._context_size)
-
-        output, self._h, self._c = self._session.run(
+        output, self._state = self._session.run(
             None,
-            {"input": input_data, "h": self._h, "c": self._c},
+            {"input": input_data, "state": self._state, "sr": self._sr},
         )
-        return float(output[0])
+        return float(output[0][0])
 
     def reset(self) -> None:
-        self._h = np.zeros((1, 1, 128), dtype=np.float32)
-        self._c = np.zeros((1, 1, 128), dtype=np.float32)
-        self._context = np.zeros((1, self._context_size), dtype=np.float32)
+        self._state = np.zeros((2, 1, 128), dtype=np.float32)
         self._accumulator = np.array([], dtype=np.float32)
 
 
