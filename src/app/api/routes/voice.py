@@ -194,7 +194,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                     greeting_idx = GREETING_TEXTS.index(greeting_text) % len(_greeting_mulaw)
                     _, greeting_audio = _greeting_mulaw[greeting_idx]
                     await _send_audio(ws, stream_sid, greeting_audio)
-                    state = CallState.SPEAKING
+                    # Stay in LISTENING — greeting already sent, ready for user input
 
                 # Inject greeting into session history so LLM won't re-greet
                 redis = ws.app.state.redis
