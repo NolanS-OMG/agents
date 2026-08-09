@@ -215,6 +215,15 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
                 payload = msg.get("media", {}).get("payload", "")
                 mulaw_chunk = base64.b64decode(payload)
 
+                if not hasattr(media_stream_tenant, "_chunk_count"):
+                    media_stream_tenant._chunk_count = 0
+                media_stream_tenant._chunk_count += 1
+                if media_stream_tenant._chunk_count <= 3 or media_stream_tenant._chunk_count % 100 == 0:
+                    logger.info(
+                        f"[Voice:{tenant_id}] media chunk #{media_stream_tenant._chunk_count} "
+                        f"state={state.value} bytes={len(mulaw_chunk)}"
+                    )
+
                 if state == CallState.SPEAKING:
                     prob = vad.process_chunk(mulaw_chunk)
                     if prob is not None and prob >= 0.5:
@@ -227,6 +236,7 @@ async def media_stream_tenant(ws: WebSocket, tenant_id: str) -> None:
 
                 utterance_audio = turn_detector.feed(mulaw_chunk)
                 if utterance_audio:
+                    logger.info(f"[Voice:{tenant_id}] End of turn detected, {len(utterance_audio)} bytes")
                     state = CallState.PROCESSING
 
                     # Send hold audio while processing
